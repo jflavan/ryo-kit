@@ -1,0 +1,41 @@
+{
+  "name": "ryo-kit",
+  "version": "0.1.0",
+  "description": "Roll Your Own AI-driven development framework. A meta-framework that generates custom agents, skills, and processes for your org.",
+  "license": "MIT",
+  "bin": {
+    "ryo": "./bin/ryo.js",
+    "ryo-kit": "./bin/ryo.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "ai", "agents", "skills", "sdlc", "spec-driven-development",
+    "claude-code", "copilot", "cursor", "codex", "windsurf", "gemini-cli",
+    "framework", "agentic", "development"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jflavan/ryo-kit"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "@clack/prompts": "^0.10.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node --test",
+    "test:watch": "node --test --watch"
+  }
+}
