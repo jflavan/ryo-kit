@@ -1,10 +1,26 @@
 # ryo-kit
 
+[![npm version](https://img.shields.io/npm/v/ryo-kit)](https://www.npmjs.com/package/ryo-kit)
+[![npm downloads](https://img.shields.io/npm/dm/ryo-kit)](https://www.npmjs.com/package/ryo-kit)
+
 Roll Your Own AI-driven development framework.
 
 ryo-kit generates custom agents, skills, processes, and workflows tailored to your organization's team size, methodology, tech stack, and compliance requirements. Unlike frameworks that ship fixed agent roles, ryo-kit produces exactly the roles and capabilities your org needs.
 
 No API keys required. The CLI scaffolds files and installs skills into your existing AI coding tool (Claude Code, Copilot, Cursor, Codex, Windsurf, or Gemini CLI). The intelligence runs through the tool you already pay for.
+
+## Installation
+
+```sh
+# Run directly without installing
+npx ryo-kit init
+
+# Or install as a dev dependency in your project
+npm install --save-dev ryo-kit
+
+# Or install globally
+npm install -g ryo-kit
+```
 
 ## Quick Start
 
