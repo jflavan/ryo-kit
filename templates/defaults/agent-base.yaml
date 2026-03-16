@@ -1,0 +1,12 @@
+# Agent Definition Base Schema
+name: ""
+role: ""
+description: ""
+responsibilities: []
+inputs: []
+outputs: []
+handoff_to: []
+tools: []
+gate:
+  type: "human"
+  criteria: []
