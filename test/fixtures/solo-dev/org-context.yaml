@@ -1,0 +1,11 @@
+methodology: none
+stack:
+  languages: [javascript]
+  frameworks: [express]
+  cloud: none
+team:
+  size: solo
+compliance: []
+tools:
+  ai: [claude-code]
+  scm: github

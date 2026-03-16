@@ -1,0 +1,19 @@
+name: Acme Startup
+methodology: scrum
+stack:
+  languages: [typescript, python]
+  frameworks: [nextjs, fastapi]
+  cloud: aws
+  cicd: [github-actions]
+team:
+  size: small
+  roles: [developers, qe, pm]
+compliance: [internal]
+tools:
+  ai: [claude-code, copilot]
+  scm: github
+  pm: linear
+conventions:
+  branching: trunk-based
+  testing: tdd
+  reviews: required
