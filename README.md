@@ -1,0 +1,104 @@
+# ryo-kit
+
+Roll Your Own AI-driven development framework.
+
+ryo-kit generates custom agents, skills, processes, and workflows tailored to your organization's team size, methodology, tech stack, and compliance requirements. Unlike frameworks that ship fixed agent roles, ryo-kit produces exactly the roles and capabilities your org needs.
+
+No API keys required. The CLI scaffolds files and installs skills into your existing AI coding tool (Claude Code, Copilot, Cursor, Codex, Windsurf, or Gemini CLI). The intelligence runs through the tool you already pay for.
+
+## Quick Start
+
+```sh
+npx ryo-kit init
+```
+
+Answer the interview questions about your org. Then open your AI tool and run:
+
+```
+/ryo-gen
+```
+
+The skill chain reads your org context and generates a complete framework into `.ryo/`.
+
+## What Gets Generated
+
+Depending on your org profile:
+
+| Org Profile | Agents | Skills | Process |
+|-------------|--------|--------|---------|
+| Solo developer | ~2 (builder, verifier) | ~4 | Lightweight with minimal gates |
+| Small scrum team | ~4 (architect, builder, reviewer, tester) | ~6 | Sprint-oriented with review gates |
+| SAFe enterprise + HIPAA | 6-8 (includes compliance, security reviewers) | 10+ | PI ceremonies, compliance gates, audit trails |
+
+Agent and skill count, names, and responsibilities are not predetermined. They're generated from your context.
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx ryo-kit init` | Org-level setup: TUI interview, write org context, install skills |
+| `npx ryo-kit gen` | Project-level: scaffold `.ryo/`, install project skills |
+| `npx ryo-kit evolve` | Re-generate framework from updated org context |
+| `npx ryo-kit add agent` | Add a new agent definition |
+| `npx ryo-kit add skill` | Add a new skill |
+| `npx ryo-kit check` | Validate framework files against schemas |
+| `npx ryo-kit update` | Pull latest skill templates from the package |
+
+All commands support `-y` / `--yes` for non-interactive usage.
+
+## Slash Commands
+
+Installed into your AI tool by `ryo init` and `ryo gen`.
+
+| Command | Description |
+|---------|-------------|
+| `/ryo-gen` | Generate agents, skills, process, and workflows from org context |
+| `/ryo-help` | Context-aware guidance on what to do next |
+| `/ryo-add-agent` | Create a new agent conversationally |
+| `/ryo-add-skill` | Create a new skill conversationally |
+| `/ryo-evolve` | Re-generate framework with updated context |
+| `/ryo-retro` | Analyze usage signals and propose improvements |
+
+## Supported Runtimes
+
+| Runtime | Skills Location | Slash Commands |
+|---------|----------------|----------------|
+| Claude Code | `.claude/skills/ryo-*/SKILL.md` | Native |
+| Copilot | `.github/prompts/ryo-*.prompt.md` | Native |
+| Cursor | `.cursor/rules/ryo-*.md` | Via rules |
+| Codex | `skills/ryo-*/SKILL.md` | Native |
+| Windsurf | `.windsurfrules` (appended) | Via rules |
+| Gemini CLI | `.gemini/skills/ryo-*/SKILL.md` | Native |
+
+## How It Works
+
+**Phase 1 (CLI)** collects your org context via a TUI interview, auto-detects project artifacts, and installs bootstrap skills into your AI tools. The CLI is deterministic with zero LLM dependencies.
+
+**Phase 2 (Skill Chain)** runs in your AI tool. `/ryo-gen` is an orchestrator that chains four focused sub-skills: agent generation, skill generation, process generation, and workflow generation. Each writes output immediately, enabling cross-session resume if a session ends mid-generation.
+
+The generator uses a hybrid approach: strong defaults from a decision tree based on your org profile, with conversational overrides during a clarification phase.
+
+## Self-Improvement
+
+Generated workflows log usage signals (gate outcomes, skipped phases, manual overrides) to `.ryo/.state/signals.md`. After a sprint or milestone, run `/ryo-retro` to analyze patterns and get improvement proposals. Apply accepted proposals with `/ryo-evolve`. Files in `.ryo/.customize/` are never silently overwritten.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/getting-started.md) | Full setup walkthrough |
+| [Architecture](docs/architecture.md) | Two-phase design, directory structure, schemas |
+| [CLI Reference](docs/cli-reference.md) | All commands with options and examples |
+| [Skill Reference](docs/skill-reference.md) | All slash commands and what they do |
+| [Runtimes](docs/runtimes.md) | How skills get installed into each AI tool |
+| [Customization](docs/customization.md) | Overriding generated content, `.customize/` directory |
+| [Self-Improvement](docs/self-improvement.md) | The retro + evolve cycle |
+| [Schema Reference](docs/schemas.md) | All Zod schemas and YAML frontmatter fields |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT

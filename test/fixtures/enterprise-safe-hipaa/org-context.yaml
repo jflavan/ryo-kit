@@ -1,0 +1,19 @@
+name: MegaCorp Health
+methodology: safe
+stack:
+  languages: [csharp, typescript]
+  frameworks: [dotnet, angular]
+  cloud: azure
+  cicd: [azure-devops]
+team:
+  size: enterprise
+  roles: [developers, architects, qe, pm, security, compliance]
+compliance: [hipaa, soc2]
+tools:
+  ai: [claude-code, copilot, cursor]
+  scm: azure-devops
+  pm: azure-boards
+conventions:
+  branching: gitflow
+  testing: bdd
+  reviews: required
