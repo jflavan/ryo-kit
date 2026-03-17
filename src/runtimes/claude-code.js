@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END } from './base.js';
 import { ensureDir, ensureParentDir, readIfExists, exists } from '../utils/fs.js';
 import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
@@ -71,16 +71,6 @@ export async function removeRyoBlock(configFile) {
     )
     .trimEnd();
   await writeFile(configFile, cleaned.length > 0 ? cleaned + '\n' : '', 'utf8');
-}
-
-export async function removeRyoSkillDirs(skillsDir) {
-  if (!await exists(skillsDir)) return;
-  const entries = await readdir(skillsDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory() && entry.name.startsWith('ryo-')) {
-      await rm(join(skillsDir, entry.name), { recursive: true, force: true });
-    }
-  }
 }
 
 function escapeRegex(str) {

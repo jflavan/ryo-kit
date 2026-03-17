@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import YAML from 'yaml';
 
-import { syncAction } from '../src/cli/commands/sync.js';
+import { syncAction, migrateOldLayout } from '../src/cli/commands/sync.js';
 import { AGENT_BLOCK_START } from '../src/utils/agent-block.js';
 
 async function makeTempDir() {
@@ -186,5 +186,95 @@ describe('syncAction', () => {
     const tomlPath = join(dir, '.codex', 'agents', 'builder.toml');
     const tomlContent = await readFile(tomlPath, 'utf8');
     assert.ok(tomlContent.includes('builder'));
+  });
+});
+
+describe('syncAction migration', () => {
+  let dir;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('migrates .ryo/skills/ to .agents/skills/', async () => {
+    // Set up old layout: .ryo/skills/ryo-gen/
+    await mkdir(join(dir, '.ryo', 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, '.ryo', 'skills', 'ryo-gen', 'SKILL.md'), '# Gen', 'utf8');
+
+    await migrateOldLayout(dir);
+
+    // Skills should now be at .agents/skills/ryo-gen/
+    const newSkillFile = join(dir, '.agents', 'skills', 'ryo-gen', 'SKILL.md');
+    const content = await readFile(newSkillFile, 'utf8');
+    assert.equal(content, '# Gen');
+
+    // Old location should be gone
+    await assert.rejects(() => access(join(dir, '.ryo', 'skills')));
+
+    // Marker file should be created
+    await access(join(dir, '.agents', '.ryo-kit'));
+  });
+
+  test('does not overwrite .agents/skills/ if it already exists', async () => {
+    // Set up both old and new layout
+    await mkdir(join(dir, '.ryo', 'skills', 'ryo-old'), { recursive: true });
+    await writeFile(join(dir, '.ryo', 'skills', 'ryo-old', 'SKILL.md'), '# Old', 'utf8');
+    await mkdir(join(dir, '.agents', 'skills', 'ryo-new'), { recursive: true });
+    await writeFile(join(dir, '.agents', 'skills', 'ryo-new', 'SKILL.md'), '# New', 'utf8');
+
+    await migrateOldLayout(dir);
+
+    // .agents/skills should be unchanged (ryo-new still there)
+    const newContent = await readFile(join(dir, '.agents', 'skills', 'ryo-new', 'SKILL.md'), 'utf8');
+    assert.equal(newContent, '# New');
+
+    // .ryo/skills should still exist (not moved)
+    await access(join(dir, '.ryo', 'skills'));
+  });
+
+  test('removes old .github/prompts/ryo-*.prompt.md files', async () => {
+    await mkdir(join(dir, '.github', 'prompts'), { recursive: true });
+    // Old ryo prompts (should be removed)
+    await writeFile(join(dir, '.github', 'prompts', 'ryo-gen.prompt.md'), '# Ryo Gen', 'utf8');
+    await writeFile(join(dir, '.github', 'prompts', 'ryo-review.prompt.md'), '# Ryo Review', 'utf8');
+    // Non-ryo prompt (should be kept)
+    await writeFile(join(dir, '.github', 'prompts', 'my-custom.prompt.md'), '# Custom', 'utf8');
+
+    await migrateOldLayout(dir);
+
+    // ryo prompts should be gone
+    await assert.rejects(() => access(join(dir, '.github', 'prompts', 'ryo-gen.prompt.md')));
+    await assert.rejects(() => access(join(dir, '.github', 'prompts', 'ryo-review.prompt.md')));
+
+    // Non-ryo prompt should still exist
+    await access(join(dir, '.github', 'prompts', 'my-custom.prompt.md'));
+  });
+
+  test('removes old root-level skills/ryo-* directories (Codex)', async () => {
+    await mkdir(join(dir, 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, 'skills', 'ryo-gen', 'index.js'), '// gen', 'utf8');
+    await mkdir(join(dir, 'skills', 'ryo-review'), { recursive: true });
+    await writeFile(join(dir, 'skills', 'ryo-review', 'index.js'), '// review', 'utf8');
+    // Non-ryo skill dir (should be kept)
+    await mkdir(join(dir, 'skills', 'my-custom'), { recursive: true });
+    await writeFile(join(dir, 'skills', 'my-custom', 'index.js'), '// custom', 'utf8');
+
+    await migrateOldLayout(dir);
+
+    // ryo-* skill dirs should be gone
+    await assert.rejects(() => access(join(dir, 'skills', 'ryo-gen')));
+    await assert.rejects(() => access(join(dir, 'skills', 'ryo-review')));
+
+    // Non-ryo skill dir should still exist
+    await access(join(dir, 'skills', 'my-custom'));
+  });
+
+  test('does nothing when no migration paths exist', async () => {
+    // Empty project dir - should not throw
+    await migrateOldLayout(dir);
   });
 });

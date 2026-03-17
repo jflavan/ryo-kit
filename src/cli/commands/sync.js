@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { readdir } from 'node:fs/promises';
+import { readdir, rename, unlink, rm, writeFile, mkdir } from 'node:fs/promises';
 import { exists } from '../../utils/fs.js';
 import { readYaml } from '../../utils/yaml.js';
 import { getRuntimeForName } from '../../scaffolder/skill-writer.js';
@@ -8,11 +8,54 @@ import { parseFrontmatter } from '../../context/schema.js';
 import { removeRyoKitSymlinks } from '../../utils/symlink.js';
 
 /**
+ * Migrate old layout conventions to the current layout.
+ *
+ * @param {string} projectDir
+ */
+export async function migrateOldLayout(projectDir) {
+  // 1. Move .ryo/skills/ to .agents/skills/
+  const oldSkillsDir = join(projectDir, '.ryo', 'skills');
+  const newSkillsDir = join(projectDir, '.agents', 'skills');
+  if (await exists(oldSkillsDir) && !await exists(newSkillsDir)) {
+    await mkdir(join(projectDir, '.agents'), { recursive: true });
+    await rename(oldSkillsDir, newSkillsDir);
+    const markerPath = join(projectDir, '.agents', '.ryo-kit');
+    if (!await exists(markerPath)) {
+      await writeFile(markerPath, '', 'utf8');
+    }
+  }
+
+  // 2. Remove old Copilot prompts: .github/prompts/ryo-*.prompt.md
+  const copilotPromptsDir = join(projectDir, '.github', 'prompts');
+  if (await exists(copilotPromptsDir)) {
+    const entries = await readdir(copilotPromptsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && /^ryo-.+\.prompt\.md$/.test(entry.name)) {
+        await unlink(join(copilotPromptsDir, entry.name));
+      }
+    }
+  }
+
+  // 3. Remove old Codex root-level skills: skills/ryo-*
+  const rootSkillsDir = join(projectDir, 'skills');
+  if (await exists(rootSkillsDir)) {
+    const entries = await readdir(rootSkillsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.startsWith('ryo-')) {
+        await rm(join(rootSkillsDir, entry.name), { recursive: true, force: true });
+      }
+    }
+  }
+}
+
+/**
  * Core sync logic, separated for testability.
  *
  * @param {{ projectDir: string, force?: boolean }} opts
  */
 export async function syncAction({ projectDir, force } = {}) {
+  // 0. Migrate old layout conventions
+  await migrateOldLayout(projectDir);
   // 1. Locate org context — prefer repo-local, fall back to org-wide
   const repoContextPath = join(projectDir, '.ryo', 'org-context.yaml');
   const orgWideContextPath = join(homedir(), '.ryo', 'org-context.yaml');
