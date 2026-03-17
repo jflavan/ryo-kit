@@ -133,6 +133,8 @@ The `.ryo/.state/` directory enables resume across sessions:
 | `decisions.md` | Clarification answers. If a session ends mid-interview, the next invocation picks up where it left off. |
 | `signals.md` | Append-only usage tracking. Gate outcomes, skipped phases, manual overrides. |
 | `retro-[date].md` | Retrospective reports with proposed changes. |
+| `docs-manifest.md` | Tracks generated documentation: paths, assigned agents, timestamps, covered source files. Used by `/ryo-docs` for staleness detection. |
+| `docs-progress.md` | In-session progress for `/ryo-docs`. Enables resume if a documentation session is interrupted. |
 | `history/` | Archived completed plans for trend analysis. |
 
 Every skill reads `.state/` on startup: resume if in-flight, start fresh if not.
@@ -170,6 +172,8 @@ Every skill reads `.state/` on startup: resume if in-flight, start fresh if not.
 │   ├── decisions.md
 │   ├── signals.md
 │   ├── retro-[date].md
+│   ├── docs-manifest.md     # /ryo-docs: generated doc tracking
+│   ├── docs-progress.md     # /ryo-docs: in-session resume state
 │   └── history/
 └── .customize/               # User overrides, preserved on evolve
     └── README.md

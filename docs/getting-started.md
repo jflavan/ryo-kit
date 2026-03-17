@@ -80,6 +80,16 @@ Your generated framework is now in `.ryo/`. Depending on your org profile, you m
 
 Use `/ryo-help` at any time for context-aware guidance on what to do next.
 
+### Generate project documentation
+
+Once your framework is generated, you can have your agents write project documentation:
+
+```
+/ryo-docs
+```
+
+The skill scans your codebase and existing docs, builds a documentation plan with your input, and delegates writing to agents based on their domains. It supports refresh — run it again after codebase changes to update stale docs.
+
 ## Step 5: Evolve over time
 
 As your org changes, update `org-context.yaml` and run:
