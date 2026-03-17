@@ -31,6 +31,17 @@ describe('agentMetaToToml', () => {
     assert.ok(result.includes('"""'));
   });
 
+  test('escapes triple double-quotes in body', () => {
+    const result = agentMetaToToml({
+      name: 'quoter',
+      description: 'Handles quotes',
+      body: 'Use """triple quotes""" carefully',
+    });
+    // Triple-quotes in body must not appear unescaped (would break TOML)
+    const bodySection = result.split('developer_instructions = """')[1].split('"""')[0];
+    assert.ok(!bodySection.includes('"""'), 'Triple quotes in body should be escaped');
+  });
+
   test('uses empty body by default', () => {
     const result = agentMetaToToml({ name: 'reviewer', description: 'Reviews code.' });
     assert.ok(result.includes('developer_instructions = """'));

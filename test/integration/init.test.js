@@ -67,11 +67,14 @@ describe('init integration', () => {
     assert.ok(skillsDirExists, '.claude/skills/ should exist after install');
   });
 
-  it('at least one ryo-* skill directory is created for claude-code', async () => {
+  it('at least one ryo-* skill symlink is created for claude-code', async () => {
     const skillsDir = join(tmpBase, '.claude', 'skills');
-    const { readdir } = await import('node:fs/promises');
-    const entries = await readdir(skillsDir, { withFileTypes: true });
-    const ryoDirs = entries.filter(e => e.isDirectory() && e.name.startsWith('ryo-'));
-    assert.ok(ryoDirs.length > 0, 'Expected at least one ryo-* skill directory');
+    const { readdir, lstat } = await import('node:fs/promises');
+    const entries = await readdir(skillsDir);
+    const ryoEntries = entries.filter(e => e.startsWith('ryo-'));
+    assert.ok(ryoEntries.length > 0, 'Expected at least one ryo-* skill entry');
+    // Verify it's a symlink
+    const stats = await lstat(join(skillsDir, ryoEntries[0]));
+    assert.ok(stats.isSymbolicLink(), 'Expected skill entry to be a symlink');
   });
 });

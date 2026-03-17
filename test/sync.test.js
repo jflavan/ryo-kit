@@ -168,6 +168,17 @@ describe('syncAction', () => {
     await assert.rejects(() => access(linkPath));
   });
 
+  test('does not duplicate agent blocks on repeated sync', async () => {
+    await setupProject(dir, ['cursor']);
+    await syncAction({ projectDir: dir });
+    await syncAction({ projectDir: dir });
+
+    const agentsMd = await readFile(join(dir, 'AGENTS.md'), 'utf8');
+    // Count occurrences of the agent name heading — should appear exactly once
+    const matches = agentsMd.match(/### builder/g);
+    assert.equal(matches.length, 1, 'Agent should appear exactly once after repeated sync');
+  });
+
   test('handles auto-discovery runtimes (cursor, codex, gemini-cli)', async () => {
     await setupProject(dir, ['cursor', 'codex', 'gemini-cli']);
     await syncAction({ projectDir: dir });

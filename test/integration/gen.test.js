@@ -56,8 +56,8 @@ describe('gen integration', () => {
     assert.ok(await exists(join(tmpBase, '.ryo', 'agents')));
   });
 
-  it('creates .ryo/skills/ directory', async () => {
-    assert.ok(await exists(join(tmpBase, '.ryo', 'skills')));
+  it('creates .agents/skills/ directory (canonical skill location)', async () => {
+    assert.ok(await exists(join(tmpBase, '.agents', 'skills')));
   });
 
   it('creates .ryo/workflows/ directory', async () => {

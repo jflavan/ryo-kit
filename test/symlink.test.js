@@ -73,6 +73,37 @@ describe('createSymlink', () => {
     assert.ok(stats.isSymbolicLink());
   });
 
+  test('replaces existing regular file at link path', async () => {
+    const target = join(dir, 'source.txt');
+    const linkPath = join(dir, 'link.txt');
+    await writeFile(target, 'hello', 'utf8');
+    // Pre-create a regular file at the link path
+    await writeFile(linkPath, 'existing', 'utf8');
+
+    await createSymlink(target, linkPath);
+
+    const stats = await lstat(linkPath);
+    assert.ok(stats.isSymbolicLink());
+    const linkTarget = await readlink(linkPath);
+    assert.equal(linkTarget, 'source.txt');
+  });
+
+  test('replaces existing directory at link path', async () => {
+    const target = join(dir, 'source-dir');
+    const linkPath = join(dir, 'link-dir');
+    await mkdir(target);
+    // Pre-create a regular directory at the link path
+    await mkdir(linkPath);
+    await writeFile(join(linkPath, 'old-file.txt'), 'old', 'utf8');
+
+    await createSymlink(target, linkPath);
+
+    const stats = await lstat(linkPath);
+    assert.ok(stats.isSymbolicLink());
+    const linkTarget = await readlink(linkPath);
+    assert.equal(linkTarget, 'source-dir');
+  });
+
   test('uses relative path for nested structures', async () => {
     const target = join(dir, 'src', 'file.txt');
     const linkPath = join(dir, 'dest', 'link.txt');

@@ -75,6 +75,10 @@ describe('ClaudeCodeRuntime', () => {
     assert.equal(runtime.agentsDir, join(dir, '.claude', 'agents'));
   });
 
+  test('agentConfigFile is null (uses symlinks)', () => {
+    assert.equal(runtime.agentConfigFile, null);
+  });
+
   test('configFile points to CLAUDE.md', () => {
     assert.equal(runtime.configFile, join(dir, 'CLAUDE.md'));
   });
@@ -183,6 +187,10 @@ describe('CopilotRuntime', () => {
     assert.equal(runtime.agentsDir, join(dir, '.github', 'agents'));
   });
 
+  test('agentConfigFile is null (uses symlinks)', () => {
+    assert.equal(runtime.agentConfigFile, null);
+  });
+
   test('configFile points to .github/copilot-instructions.md', () => {
     assert.equal(runtime.configFile, join(dir, '.github', 'copilot-instructions.md'));
   });
@@ -269,6 +277,10 @@ describe('CursorRuntime', () => {
     assert.equal(runtime.agentsDir, null);
   });
 
+  test('agentConfigFile points to AGENTS.md', () => {
+    assert.equal(runtime.agentConfigFile, join(dir, 'AGENTS.md'));
+  });
+
   test('configFile points to .cursorrules', () => {
     assert.equal(runtime.configFile, join(dir, '.cursorrules'));
   });
@@ -349,6 +361,10 @@ describe('CodexRuntime', () => {
 
   test('agentsDir points to .codex/agents', () => {
     assert.equal(runtime.agentsDir, join(dir, '.codex', 'agents'));
+  });
+
+  test('agentConfigFile points to AGENTS.md', () => {
+    assert.equal(runtime.agentConfigFile, join(dir, 'AGENTS.md'));
   });
 
   test('configFile points to AGENTS.md', () => {
@@ -439,6 +455,10 @@ describe('WindsurfRuntime', () => {
     assert.equal(runtime.agentsDir, null);
   });
 
+  test('agentConfigFile points to AGENTS.md', () => {
+    assert.equal(runtime.agentConfigFile, join(dir, 'AGENTS.md'));
+  });
+
   test('configFile points to .windsurfrules', () => {
     assert.equal(runtime.configFile, join(dir, '.windsurfrules'));
   });
@@ -519,6 +539,10 @@ describe('GeminiCliRuntime', () => {
 
   test('agentsDir is null', () => {
     assert.equal(runtime.agentsDir, null);
+  });
+
+  test('agentConfigFile points to GEMINI.md', () => {
+    assert.equal(runtime.agentConfigFile, join(dir, 'GEMINI.md'));
   });
 
   test('configFile points to GEMINI.md', () => {
