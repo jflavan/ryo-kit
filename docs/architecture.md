@@ -47,8 +47,12 @@ Key modules:
 | `src/context/detector.js` | Auto-detects project artifacts (CLAUDE.md, package.json, etc.) |
 | `src/context/writer.js` | Writes org-context.yaml and constitution.md |
 | `src/scaffolder/directory.js` | Creates the `.ryo/` directory tree |
-| `src/scaffolder/skill-writer.js` | Installs skills into runtimes from templates |
-| `src/runtimes/*.js` | Runtime-specific file placement and config management |
+| `src/scaffolder/skill-writer.js` | Writes skills to canonical `.agents/skills/` and installs into runtimes |
+| `src/runtimes/*.js` | Runtime-specific symlink/copy placement and config management |
+| `src/cli/commands/sync.js` | Syncs skills and agents to all configured runtimes |
+| `src/utils/symlink.js` | Cross-platform symlink creation and cleanup |
+| `src/utils/agent-block.js` | Managed agent blocks in Markdown config files |
+| `src/utils/toml-agent.js` | TOML agent file generation for Codex |
 | `src/cli/prompts/org-interview.js` | TUI interview flow |
 
 ## Phase 2: Skill Chain (AI-Powered)
@@ -77,7 +81,7 @@ User invokes /ryo-gen
     └────┬────────────────┘
          │
     ┌────▼────────────────┐
-    │  skill-generation    │  → .ryo/skills/*/SKILL.md
+    │  skill-generation    │  → .agents/skills/*/SKILL.md
     └────┬────────────────┘
          │
     ┌────▼────────────────┐
@@ -91,7 +95,11 @@ User invokes /ryo-gen
     ┌────▼────────────────┐
     │  Validation          │
     │  - Consistency check │
-    │  - Install to runtime│
+    └────┬────────────────┘
+         │
+    ┌────▼────────────────┐
+    │  Sync to runtimes    │
+    │  - npx ryo-kit sync  │
     └─────────────────────┘
 ```
 
@@ -142,16 +150,19 @@ Every skill reads `.state/` on startup: resume if in-flight, start fresh if not.
     └── process-base.yaml    # Base schema example for processes
 ```
 
-### Project-level (`.ryo/`)
+### Project-level (`.ryo/` and `.agents/`)
 
 ```
+.agents/                      # Canonical skill location (synced to runtimes)
+├── skills/
+│   └── [name]/
+│       └── SKILL.md          # Generated: one per skill
+└── .ryo-kit                  # Marker file — identifies ryo-kit ownership
+
 .ryo/
 ├── process.md               # Generated: phases, gates, artifacts, handoffs
 ├── agents/
 │   └── [name].agent.md      # Generated: one per agent role
-├── skills/
-│   └── [name]/
-│       └── SKILL.md          # Generated: one per skill
 ├── workflows/
 │   └── [name].workflow.md    # Generated: one per scenario
 ├── .state/                   # Cross-session persistence
@@ -163,6 +174,8 @@ Every skill reads `.state/` on startup: resume if in-flight, start fresh if not.
 └── .customize/               # User overrides, preserved on evolve
     └── README.md
 ```
+
+The `ryo sync` command reads skills from `.agents/skills/` and agents from `.ryo/agents/`, then creates symlinks (or copies) into each configured runtime's native directory. Runtimes like Cursor, Codex, and Gemini CLI auto-discover skills from `.agents/skills/` and need no symlinks.
 
 ## Schemas
 

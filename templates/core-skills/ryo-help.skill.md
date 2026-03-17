@@ -19,7 +19,7 @@ Read the `.ryo/` directory to determine whether a framework has been generated.
 
 1. Check if `.ryo/process.md` exists.
 2. Check if `.ryo/agents/` contains any `.agent.md` files.
-3. Check if `.ryo/skills/` contains any `SKILL.md` files.
+3. Check if `.agents/skills/` contains any `SKILL.md` files.
 
 **If none of these exist:** The framework has not been generated yet. Tell the user:
 
@@ -71,7 +71,7 @@ Build a mental map of the agent pipeline.
 
 ### Skills
 
-Read all `SKILL.md` files in `.ryo/skills/*/`. For each, extract from the YAML frontmatter:
+Read all `SKILL.md` files in `.agents/skills/*/`. For each, extract from the YAML frontmatter:
 - `name` — The skill's identifier
 - `description` — What the skill does
 - `trigger` — How to invoke it

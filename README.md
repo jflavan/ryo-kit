@@ -34,7 +34,7 @@ Answer the interview questions about your org. Then open your AI tool and run:
 /ryo-gen
 ```
 
-The skill chain reads your org context and generates a complete framework into `.ryo/`.
+The skill chain reads your org context and generates a complete framework into `.ryo/`. Skills are written to `.agents/skills/` and synced to each configured runtime.
 
 ## What Gets Generated
 
@@ -53,8 +53,9 @@ Agent and skill count, names, and responsibilities are not predetermined. They'r
 | Command | Description |
 |---------|-------------|
 | `npx ryo-kit init` | Org-level setup: TUI interview, write org context, install skills |
-| `npx ryo-kit gen` | Project-level: scaffold `.ryo/`, install project skills |
+| `npx ryo-kit gen` | Project-level: scaffold `.ryo/`, install project skills, sync to runtimes |
 | `npx ryo-kit evolve` | Re-generate framework from updated org context |
+| `npx ryo-kit sync` | Sync agents and skills to all configured coding tool runtimes |
 | `npx ryo-kit add agent` | Add a new agent definition |
 | `npx ryo-kit add skill` | Add a new skill |
 | `npx ryo-kit check` | Validate framework files against schemas |
@@ -77,20 +78,24 @@ Installed into your AI tool by `ryo init` and `ryo gen`.
 
 ## Supported Runtimes
 
-| Runtime | Skills Location | Slash Commands |
-|---------|----------------|----------------|
-| Claude Code | `.claude/skills/ryo-*/SKILL.md` | Native |
-| Copilot | `.github/prompts/ryo-*.prompt.md` | Native |
-| Cursor | `.cursor/rules/ryo-*.md` | Via rules |
-| Codex | `skills/ryo-*/SKILL.md` | Native |
-| Windsurf | `.windsurfrules` (appended) | Via rules |
-| Gemini CLI | `.gemini/skills/ryo-*/SKILL.md` | Native |
+Skills are authored in `.agents/skills/` (the canonical location) and symlinked or copied to each runtime's native directory by `ryo sync`.
+
+| Runtime | Skills Location | Agents Location | Mechanism |
+|---------|----------------|-----------------|-----------|
+| Claude Code | `.claude/skills/` | `.claude/agents/` | Symlinks |
+| Copilot | `.github/skills/` | `.github/agents/` | Symlinks |
+| Cursor | Auto-discovers `.agents/skills/` | `AGENTS.md` block | No-op / Config block |
+| Codex | Auto-discovers `.agents/skills/` | `.codex/agents/` (TOML) + `AGENTS.md` block | No-op / TOML + Config block |
+| Windsurf | `.windsurf/rules/` | `AGENTS.md` block | Copy + transform |
+| Gemini CLI | Auto-discovers `.agents/skills/` | `GEMINI.md` block | No-op / Config block |
 
 ## How It Works
 
 **Phase 1 (CLI)** collects your org context via a TUI interview, auto-detects project artifacts, and installs bootstrap skills into your AI tools. The CLI is deterministic with zero LLM dependencies.
 
 **Phase 2 (Skill Chain)** runs in your AI tool. `/ryo-gen` is an orchestrator that chains four focused sub-skills: agent generation, skill generation, process generation, and workflow generation. Each writes output immediately, enabling cross-session resume if a session ends mid-generation.
+
+**Sync** distributes skills and agents from the canonical `.agents/skills/` directory to each configured runtime using symlinks (or copies for runtimes that don't support symlinks). Run `npx ryo-kit sync` manually, or let `gen` and `evolve` handle it automatically.
 
 The generator uses a hybrid approach: strong defaults from a decision tree based on your org profile, with conversational overrides during a clarification phase.
 

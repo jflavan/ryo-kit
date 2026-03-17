@@ -19,7 +19,7 @@ You are the retrospective skill for ryo-kit. Your job is to analyze how the fram
 Confirm the framework is in place before analyzing it:
 
 1. Check that `.ryo/agents/` contains at least one `.agent.md` file.
-2. Check that `.ryo/skills/` contains at least one `SKILL.md` file.
+2. Check that `.agents/skills/` contains at least one `SKILL.md` file.
 3. Check that `.ryo/process.md` exists.
 4. Check that `.ryo/workflows/` contains at least one `.workflow.md` file.
 
@@ -76,7 +76,7 @@ Read all `.agent.md` files in `.ryo/agents/`. For each, extract:
 - `gate` (type and criteria)
 
 ### Skills
-Read all `SKILL.md` files in `.ryo/skills/*/`. For each, extract:
+Read all `SKILL.md` files in `.agents/skills/*/`. For each, extract:
 - `name`, `description`, `trigger`
 - `agent` (if present)
 - `inputs`, `outputs`
@@ -228,7 +228,7 @@ Write the retro report to `.ryo/.state/retro-[date].md` where `[date]` is the cu
 
 ### Remove: pi-planner agent
 **Why:** Never invoked in any workflow over 30 days. Zero signals referencing pi-planner. No workflow step uses this agent.
-**Impact:** Removes .ryo/agents/pi-planner.agent.md and associated skill .ryo/skills/pi-plan/SKILL.md. Simplifies process definition by removing the pi-planning phase.
+**Impact:** Removes .ryo/agents/pi-planner.agent.md and associated skill .agents/skills/pi-plan/SKILL.md. Simplifies process definition by removing the pi-planning phase.
 **Status:** [PENDING]
 ```
 

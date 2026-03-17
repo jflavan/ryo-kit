@@ -18,7 +18,7 @@ Before generating the process, read and understand all of the following:
 
 1. **Agent definitions** — Read all `.agent.md` files from `.ryo/agents/`. Note each agent's name, role, responsibilities, and handoff relationships.
 
-2. **Skill definitions** — Read all `SKILL.md` files from `.ryo/skills/*/`. Note each skill's name, associated agent (if any), inputs, and outputs.
+2. **Skill definitions** — Read all `SKILL.md` files from `.agents/skills/*/`. Note each skill's name, associated agent (if any), inputs, and outputs.
 
 3. **Org context** — Read `org-context.yaml` (from `.ryo/` or `~/.ryo/`). Critical fields:
    - `methodology` — Determines the overall phase structure
@@ -187,7 +187,7 @@ Every scale rule must have a `required_phases` array that is never empty. Even t
 
 1. **Read `.ryo/process.md` before writing** to check if a process definition already exists (relevant when resuming). Do not overwrite unless regenerating.
 2. **Validate agent references.** Every agent name in the `agents` arrays must correspond to an actual agent file in `.ryo/agents/`. If an agent doesn't exist, do not reference it.
-3. **Validate phase-to-skill mapping is plausible.** For each phase, at least one skill in `.ryo/skills/` should be relevant to the phase's purpose. You don't need to list skills in the process definition (that's the workflow's job), but verify the mapping makes sense.
+3. **Validate phase-to-skill mapping is plausible.** For each phase, at least one skill in `.agents/skills/` should be relevant to the phase's purpose. You don't need to list skills in the process definition (that's the workflow's job), but verify the mapping makes sense.
 4. **Gate types should match org conventions:**
    - If `conventions.reviews` is "required": review gates should be `type: "human"` or `type: "hybrid"`
    - If `conventions.testing` is "tdd": testing gates should include test-first criteria

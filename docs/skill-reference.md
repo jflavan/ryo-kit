@@ -15,11 +15,12 @@ Skills are markdown prompt files installed into your AI coding tool. They run in
 3. Asks clarifying questions about the project (saved to `.ryo/.state/decisions.md`)
 4. Chains four sub-skills in order:
    - **agent-generation** — writes `.ryo/agents/*.agent.md`
-   - **skill-generation** — writes `.ryo/skills/*/SKILL.md`
+   - **skill-generation** — writes `.agents/skills/*/SKILL.md`
    - **process-generation** — writes `.ryo/process.md`
    - **workflow-generation** — writes `.ryo/workflows/*.workflow.md`
 5. Runs validation (consistency check across all generated artifacts)
-6. Archives the completed plan to `.ryo/.state/history/`
+6. Syncs skills and agents to configured runtimes (`npx ryo-kit sync`)
+7. Archives the completed plan to `.ryo/.state/history/`
 
 **Cross-session resume:** If your session ends during generation, invoke `/ryo-gen` again. It reads `current-plan.md` and picks up from the first incomplete phase. Decisions and partial outputs are preserved.
 
@@ -158,7 +159,7 @@ These are invoked by `/ryo-gen` and `/ryo-evolve`, not directly by users:
 | Sub-Skill | Output | Schema |
 |-----------|--------|--------|
 | `agent-generation` | `.ryo/agents/*.agent.md` | AgentDefSchema |
-| `skill-generation` | `.ryo/skills/*/SKILL.md` | SkillDefSchema |
+| `skill-generation` | `.agents/skills/*/SKILL.md` | SkillDefSchema |
 | `process-generation` | `.ryo/process.md` | ProcessDefSchema |
 | `workflow-generation` | `.ryo/workflows/*.workflow.md` | WorkflowDefSchema |
 

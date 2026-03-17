@@ -28,6 +28,15 @@ async function isDir(p) {
   }
 }
 
+async function fileExists(p) {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---- scaffoldProjectDir ----
 
 describe('scaffoldProjectDir', () => {
@@ -48,9 +57,16 @@ describe('scaffoldProjectDir', () => {
     assert.ok(await isDir(join(ryoDir, 'agents')));
   });
 
-  test('creates .ryo/skills/ directory', async () => {
+  test('creates .agents/skills/ directory (canonical skill location)', async () => {
     await scaffoldProjectDir(ryoDir);
-    assert.ok(await isDir(join(ryoDir, 'skills')));
+    assert.ok(await isDir(join(tmpBase, '.agents', 'skills')));
+  });
+
+  test('creates .agents/.ryo-kit marker file', async () => {
+    await scaffoldProjectDir(ryoDir);
+    assert.ok(await fileExists(join(tmpBase, '.agents', '.ryo-kit')));
+    const content = await readFile(join(tmpBase, '.agents', '.ryo-kit'), 'utf8');
+    assert.equal(content, '');
   });
 
   test('creates .ryo/workflows/ directory', async () => {
@@ -213,5 +229,12 @@ describe('installSkillsForRuntimes', () => {
 
   test('accepts empty runtimes array without error', async () => {
     await installSkillsForRuntimes(tmpBase, []);
+  });
+
+  test('skills land in .agents/skills/ canonical location', async () => {
+    await installSkillsForRuntimes(tmpBase, ['claude-code']);
+    // The bootstrap template ryo-gen should be written to canonical location
+    assert.ok(await isDir(join(tmpBase, '.agents', 'skills', 'ryo-gen')));
+    assert.ok(await fileExists(join(tmpBase, '.agents', 'skills', 'ryo-gen', 'SKILL.md')));
   });
 });

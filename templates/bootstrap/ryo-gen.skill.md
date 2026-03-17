@@ -162,7 +162,7 @@ Inputs to provide:
 - All decisions
 - The agent definitions just created in `.ryo/agents/`
 
-The sub-skill will write skill definitions to `.ryo/skills/`. Wait for it to finish before proceeding.
+The sub-skill will write skill definitions to `.agents/skills/`. Wait for it to finish before proceeding.
 
 After completion, update current-plan.md: check off "Phase 2: Skill Generation".
 
@@ -173,7 +173,7 @@ Follow the instructions in the **process-generation** sub-skill template.
 Inputs to provide:
 - The parsed org context (especially methodology, compliance, team size)
 - The agent definitions from `.ryo/agents/`
-- The skill definitions from `.ryo/skills/`
+- The skill definitions from `.agents/skills/`
 
 The sub-skill will write `.ryo/process.md`. Wait for it to finish before proceeding.
 
@@ -200,7 +200,7 @@ Follow the instructions in the **validation** fragment to perform a consistency 
 
 Specifically, verify:
 1. Every agent referenced in any workflow step exists as a file in `.ryo/agents/`.
-2. Every skill referenced in any workflow step exists as a directory in `.ryo/skills/` with a `SKILL.md` file.
+2. Every skill referenced in any workflow step exists as a directory in `.agents/skills/` with a `SKILL.md` file.
 3. Every process phase referenced in any workflow step exists in `.ryo/process.md`.
 4. Agent `handoff_to` references form a valid directed acyclic graph (no cycles).
 5. Every agent has at least one skill that references it (via the skill's `agent` field) OR is used in at least one workflow step.
@@ -219,7 +219,7 @@ After validation passes, update current-plan.md: check off "Phase 5: Validation"
 
 ### Install generated skills into the active runtime(s)
 
-Read the `tools.ai` field from org-context.yaml to determine which runtimes to target. For each runtime, the generated skills in `.ryo/skills/` need to be accessible as slash commands or rules. Tell the user:
+Read the `tools.ai` field from org-context.yaml to determine which runtimes to target. For each runtime, the generated skills in `.agents/skills/` need to be accessible as slash commands or rules. Tell the user:
 
 "Generation complete. To install the generated skills into your AI tool(s), run: `npx ryo-kit gen`"
 
@@ -229,6 +229,18 @@ Read the `tools.ai` field from org-context.yaml to determine which runtimes to t
 2. Clear or delete `.ryo/.state/current-plan.md` so the next invocation starts fresh.
 
 After completion, update current-plan.md: check off "Phase 6: Archive" (before archiving it).
+
+---
+
+## Phase 6: Sync to Coding Tools
+
+After all agents, skills, processes, and workflows are generated, run the sync command to link them to your coding tools:
+
+```
+npx ryo-kit sync
+```
+
+This creates symlinks and configuration so all your coding tools (Claude Code, Copilot, Cursor, etc.) can discover the generated agents and skills natively.
 
 ---
 

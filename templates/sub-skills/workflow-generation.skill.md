@@ -20,7 +20,7 @@ Before generating workflows, read and understand all of the following:
 
 1. **Agent definitions** — Read all `.agent.md` files from `.ryo/agents/`. Note each agent's name, responsibilities, inputs, outputs, handoff_to, and gate.
 
-2. **Skill definitions** — Read all `SKILL.md` files from `.ryo/skills/*/`. Note each skill's name, agent association, trigger, inputs, and outputs.
+2. **Skill definitions** — Read all `SKILL.md` files from `.agents/skills/*/`. Note each skill's name, agent association, trigger, inputs, and outputs.
 
 3. **Process definition** — Read `.ryo/process.md`. Note each phase's name, agents, artifacts, gate, and scale_rules.
 
@@ -160,7 +160,7 @@ Include these instructions directly in the workflow step body. The AI tool execu
 
 1. **Every step must reference a valid process phase.** The `phase` field must match a phase name from `.ryo/process.md`.
 2. **Every step must reference a valid agent.** The `agent` field must match an agent name from `.ryo/agents/`.
-3. **Every step must reference at least one valid skill.** The `skills` array must contain skill names that exist in `.ryo/skills/`.
+3. **Every step must reference at least one valid skill.** The `skills` array must contain skill names that exist in `.agents/skills/`.
 4. **Step ordering must follow the process phase ordering.** Steps should progress through phases in the order defined in `process.md`. A step in phase 3 should not come before a step in phase 2.
 5. **Inputs and outputs must chain correctly.** Step N's outputs should appear in Step N+1's inputs (or later steps). The first step's inputs come from the workflow trigger. The last step's outputs are the workflow's deliverable.
 6. **Gates at step level override process-level gates** when they are more specific. For example, a hotfix workflow may use `type: "automated"` for a review gate that the process defines as `type: "human"`.
@@ -207,7 +207,7 @@ scale_rules:
 4. **Validate all references before writing:**
    - Every `phase` value exists in `process.md`
    - Every `agent` value exists in `.ryo/agents/`
-   - Every skill in `skills` arrays exists in `.ryo/skills/`
+   - Every skill in `skills` arrays exists in `.agents/skills/`
 5. **Include signal logging in every gated step.** This is not optional. The self-improvement system depends on it.
 6. **Report what you created.** After writing all workflows, list them: "Created N workflows: [name] (M steps), ..."
 

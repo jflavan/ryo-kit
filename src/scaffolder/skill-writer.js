@@ -1,7 +1,7 @@
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readdir } from 'node:fs/promises';
-import { readIfExists, exists } from '../utils/fs.js';
+import { readdir, writeFile } from 'node:fs/promises';
+import { readIfExists, exists, ensureDir } from '../utils/fs.js';
 import { ClaudeCodeRuntime } from '../runtimes/claude-code.js';
 import { CopilotRuntime } from '../runtimes/copilot.js';
 import { CursorRuntime } from '../runtimes/cursor.js';
@@ -34,6 +34,9 @@ export function getRuntimeForName(name, projectDir) {
 /**
  * Install bootstrap and core skills into the given runtimes.
  *
+ * Skills are written to the canonical .agents/skills/{name}/SKILL.md location,
+ * then each runtime's installSkill is called with the canonical directory path.
+ *
  * @param {string} projectDir - Absolute path to the project directory.
  * @param {string[]} runtimeNames - Array of runtime names to install into.
  */
@@ -55,14 +58,18 @@ export async function installSkillsForRuntimes(projectDir, runtimeNames) {
       const content = await readIfExists(filePath);
       if (content === null) continue;
 
-      // Derive skill name from file name (strip extension(s), e.g. ryo-gen.skill.md -> gen)
+      // Keep the full name (e.g., ryo-gen not gen)
       const skillName = entry.name
-        .replace(/^ryo-/, '')
         .replace(/\.skill\.md$/, '')
         .replace(/\.md$/, '');
 
+      // Write to canonical location
+      const canonicalDir = join(projectDir, '.agents', 'skills', skillName);
+      await ensureDir(canonicalDir);
+      await writeFile(join(canonicalDir, 'SKILL.md'), content, 'utf8');
+
       for (const runtime of runtimes) {
-        await runtime.installSkill(skillName, content);
+        await runtime.installSkill(skillName, canonicalDir);
       }
     }
   }

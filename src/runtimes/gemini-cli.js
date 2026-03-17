@@ -1,24 +1,29 @@
 import { join } from 'node:path';
-import { writeFile } from 'node:fs/promises';
 import { BaseRuntime } from './base.js';
-import { ensureDir } from '../utils/fs.js';
-import { upsertRyoBlock, removeRyoBlock, removeRyoSkillDirs } from './claude-code.js';
+import { upsertRyoBlock, removeRyoBlock } from './claude-code.js';
+import { upsertAgentBlock, removeAgentBlock } from '../utils/agent-block.js';
 
 export class GeminiCliRuntime extends BaseRuntime {
   get name() { return 'gemini-cli'; }
 
-  get skillsDir() {
-    return join(this.projectDir, '.gemini', 'skills');
+  get skillsDir() { return null; }
+
+  get agentsDir() { return null; }
+
+  get agentConfigFile() {
+    return join(this.projectDir, 'GEMINI.md');
   }
 
   get configFile() {
     return join(this.projectDir, 'GEMINI.md');
   }
 
-  async installSkill(skillName, skillContent) {
-    const dir = join(this.skillsDir, `ryo-${skillName}`);
-    await ensureDir(dir);
-    await writeFile(join(dir, 'SKILL.md'), skillContent, 'utf8');
+  async installSkill(_skillName, _canonicalSkillDir) {
+    // No-op — Gemini CLI auto-discovers from .agents/skills/
+  }
+
+  async installAgent(agentName, agentMeta) {
+    await upsertAgentBlock(this.agentConfigFile, agentMeta);
   }
 
   async updateConfig(contextRef) {
@@ -26,7 +31,7 @@ export class GeminiCliRuntime extends BaseRuntime {
   }
 
   async uninstall() {
-    await removeRyoSkillDirs(this.skillsDir);
+    await removeAgentBlock(this.agentConfigFile);
     await removeRyoBlock(this.configFile);
   }
 }
