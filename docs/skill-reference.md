@@ -186,6 +186,33 @@ Each selected agent responds from their domain — the architect might weigh sca
 
 ---
 
+## /ryo-docs
+
+**Purpose:** Generate and maintain project documentation by leveraging your agent team's domain expertise.
+
+**When to use:** When your project needs documentation — architecture overviews, API references, onboarding guides, or any docs that agents can derive from the codebase.
+
+**What it does:**
+
+1. Reads all agent definitions from `.ryo/agents/` and org context
+2. Asks who the documentation is for (onboarding, external devs, internal team, or all)
+3. Scans the codebase and existing docs to identify gaps, staleness, and coverage
+4. Presents a documentation plan — which docs to create or update, assigned to which agents
+5. Generates each doc from the assigned agent's perspective, pausing for review after each
+6. Tracks generated docs in a manifest for future staleness detection and refresh
+
+**Supports refresh:** Run `/ryo-docs` again after codebase changes. It detects which docs are stale based on git history and proposes updates.
+
+**Example:**
+
+```
+/ryo-docs
+```
+
+The skill walks you through audience selection, plan review, and doc generation interactively.
+
+---
+
 ## Sub-Skills (Internal)
 
 These are invoked by `/ryo-gen` and `/ryo-evolve`, not directly by users:
