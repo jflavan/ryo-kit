@@ -85,6 +85,7 @@ Ask the user targeted questions to fill gaps and establish project-specific cont
 **Ask if useful for tailoring:**
 7. "Are there any agent roles you specifically want or don't want? (e.g., 'we don't need a separate architect role' or 'we need a dedicated security reviewer')"
 8. "Any existing process documents, runbooks, or workflow diagrams I should know about?"
+9. "Would you like agents generated with persona data (display name, icon, communication style, identity)? This enables conference mode (`/ryo-conference`) for multi-agent discussions. (yes/no, default: yes)"
 
 ### decisions.md format
 
@@ -104,6 +105,9 @@ Must support multi-tenancy from day one
 
 ## Branching Strategy
 trunk-based with feature flags
+
+## Persona Data
+yes — generate persona fields for all agents
 
 ...
 ```
