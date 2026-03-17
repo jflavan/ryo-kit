@@ -208,15 +208,20 @@ export async function createSymlink(target, linkPath) {
 
   const relTarget = relative(dirname(linkPath), target);
   const targetStat = await lstat(target);
-  const type = targetStat.isDirectory() ? 'dir' : 'file';
+  const isDir = targetStat.isDirectory();
 
   try {
-    await symlink(relTarget, linkPath, type === 'dir' ? 'junction' : 'file');
+    if (process.platform === 'win32' && isDir) {
+      // Windows junctions require absolute paths
+      await symlink(resolve(target), linkPath, 'junction');
+    } else {
+      await symlink(relTarget, linkPath, isDir ? 'dir' : 'file');
+    }
   } catch (err) {
     if (err.code === 'EPERM' || err.code === 'ENOTSUP') {
       // Windows fallback: copy instead
       const { cpSync } = await import('node:fs');
-      cpSync(target, linkPath, { recursive: type === 'dir' });
+      cpSync(target, linkPath, { recursive: isDir });
     } else {
       throw err;
     }
@@ -520,7 +525,7 @@ export async function installSkillsForRuntimes(projectDir, runtimeNames) {
 }
 ```
 
-Note: This changes `installSkill`'s second argument from `skillContent` (string) to `canonicalSkillDir` (path). The runtime implementations will be updated in the next chunk to handle this.
+**IMPORTANT: Sequencing note.** This changes `installSkill`'s second argument from `skillContent` (string) to `canonicalSkillDir` (path). All six runtime implementations must be updated in the same commit or the test suite will break. Do NOT commit this task until Tasks 5-9 (all runtime rewrites) are also complete. Commit them together as a single atomic change. If working incrementally, keep changes unstaged until all runtimes are updated.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1097,7 +1102,85 @@ Expected: FAIL
 
 - [ ] **Step 3: Implement new WindsurfRuntime**
 
-`installSkill` reads the canonical SKILL.md, transforms the frontmatter (replaces ryo-kit `trigger` with Windsurf `trigger: model_decision`), and writes to `.windsurf/rules/{name}.md`.
+```js
+// src/runtimes/windsurf.js
+import { join } from 'node:path';
+import { writeFile, readFile, unlink, readdir } from 'node:fs/promises';
+import { BaseRuntime } from './base.js';
+import { ensureDir, readIfExists, exists } from '../utils/fs.js';
+import { upsertAgentBlock, removeAgentBlock } from '../utils/agent-block.js';
+
+export class WindsurfRuntime extends BaseRuntime {
+  get name() { return 'windsurf'; }
+
+  get skillsDir() {
+    return join(this.projectDir, '.windsurf', 'rules');
+  }
+
+  get agentsDir() { return null; }
+
+  get configFile() {
+    return join(this.projectDir, '.windsurfrules'); // legacy, kept for migration
+  }
+
+  get agentConfigFile() {
+    return join(this.projectDir, 'AGENTS.md');
+  }
+
+  async installSkill(skillName, canonicalSkillDir) {
+    await ensureDir(this.skillsDir);
+    // Read canonical SKILL.md
+    const content = await readFile(join(canonicalSkillDir, 'SKILL.md'), 'utf8');
+    // Transform frontmatter: replace ryo-kit trigger with Windsurf trigger
+    const transformed = transformForWindsurf(content);
+    await writeFile(join(this.skillsDir, `${skillName}.md`), transformed, 'utf8');
+  }
+
+  async installAgent(agentName, agentMeta) {
+    await upsertAgentBlock(this.agentConfigFile, agentMeta);
+  }
+
+  async updateConfig(_contextRef) { /* no-op */ }
+
+  async uninstall() {
+    // Remove .windsurf/rules/ ryo-kit files
+    if (await exists(this.skillsDir)) {
+      const entries = await readdir(this.skillsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name.endsWith('.md')) {
+          const filePath = join(this.skillsDir, entry.name);
+          const content = await readIfExists(filePath);
+          if (content && content.includes('trigger: model_decision')) {
+            await unlink(filePath);
+          }
+        }
+      }
+    }
+    // Remove agent block from AGENTS.md
+    await removeAgentBlock(this.agentConfigFile);
+    // Legacy cleanup: remove ryo-kit blocks from .windsurfrules
+    await removeLegacyWindsurfBlocks(this.configFile);
+  }
+}
+
+function transformForWindsurf(content) {
+  // Replace ryo-kit frontmatter trigger (a description string) with
+  // Windsurf's trigger enum value
+  return content.replace(
+    /^(---\n[\s\S]*?)trigger:\s*[^\n]+/m,
+    '$1trigger: model_decision',
+  );
+}
+
+async function removeLegacyWindsurfBlocks(configFile) {
+  if (!await exists(configFile)) return;
+  const content = await readIfExists(configFile) ?? '';
+  const cleaned = content
+    .replace(/\n?<!-- ryo-kit:[^:]+:start -->[\s\S]*?<!-- ryo-kit:[^:]+:end -->\n?/g, '')
+    .trimEnd();
+  await writeFile(configFile, cleaned.length > 0 ? cleaned + '\n' : '', 'utf8');
+}
+```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1421,7 +1504,398 @@ git commit -m "feat: wire ryo sync into gen command"
 
 ---
 
-### Task 13: Final integration test — all tests green
+## Chunk 7: Migration, Cleanup, and Polish
+
+### Task 13: Add stale symlink cleanup to sync
+
+**Files:**
+- Modify: `src/cli/commands/sync.js`
+- Modify: `test/sync.test.js`
+
+- [ ] **Step 1: Add test for stale symlink cleanup**
+
+```js
+test('removes stale symlinks when canonical skill is deleted', async () => {
+  // First sync creates symlinks
+  await syncAction({ projectDir: dir });
+  const linkPath = join(dir, '.claude', 'skills', 'ryo-gen');
+  const stats = await lstat(linkPath);
+  assert.ok(stats.isSymbolicLink());
+
+  // Delete canonical skill
+  await rm(join(dir, '.agents', 'skills', 'ryo-gen'), { recursive: true, force: true });
+
+  // Re-sync should remove dangling symlink
+  await syncAction({ projectDir: dir });
+  await assert.rejects(() => lstat(linkPath));
+});
+```
+
+- [ ] **Step 2: Add cleanup logic to syncAction**
+
+Before creating new links for each runtime, call `removeRyoKitSymlinks` on its `skillsDir` and `agentsDir` (if non-null):
+
+```js
+for (const runtime of runtimes) {
+  // Clean stale symlinks first
+  if (runtime.skillsDir) {
+    await removeRyoKitSymlinks(runtime.skillsDir);
+  }
+  if (runtime.agentsDir) {
+    await removeRyoKitSymlinks(runtime.agentsDir);
+  }
+
+  // Then create fresh links
+  // ... existing skill/agent loops ...
+}
+```
+
+- [ ] **Step 3: Run tests**
+
+Run: `node --test test/sync.test.js`
+Expected: All PASS
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/cli/commands/sync.js test/sync.test.js
+git commit -m "feat: add stale symlink cleanup to ryo sync"
+```
+
+---
+
+### Task 14: Wire sync into evolve command
+
+**Files:**
+- Modify: `src/cli/commands/evolve.js`
+
+- [ ] **Step 1: Add syncAction call after installSkillsForRuntimes**
+
+Same pattern as Task 12 for gen.js. Import `syncAction` from `./sync.js` and call it after the skill installation step.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add src/cli/commands/evolve.js
+git commit -m "feat: wire ryo sync into evolve command"
+```
+
+---
+
+### Task 15: Migration logic in sync
+
+**Files:**
+- Modify: `src/cli/commands/sync.js`
+- Modify: `test/sync.test.js`
+
+- [ ] **Step 1: Add migration tests**
+
+```js
+describe('syncAction migration', () => {
+  let dir;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await mkdir(join(dir, '.ryo'), { recursive: true });
+    await writeFile(
+      join(dir, '.ryo', 'org-context.yaml'),
+      YAML.stringify({
+        tools: { ai: ['claude-code', 'copilot'], scm: 'github' },
+        methodology: 'scrum',
+        stack: { languages: ['js'], frameworks: [], cloud: 'none' },
+        team: { size: 'solo' },
+        compliance: [],
+      }),
+      'utf8',
+    );
+    await mkdir(join(dir, '.ryo', 'agents'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('migrates .ryo/skills/ to .agents/skills/', async () => {
+    await mkdir(join(dir, '.ryo', 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, '.ryo', 'skills', 'ryo-gen', 'SKILL.md'), '# Gen', 'utf8');
+    await syncAction({ projectDir: dir, force: true });
+    const content = await readFile(join(dir, '.agents', 'skills', 'ryo-gen', 'SKILL.md'), 'utf8');
+    assert.equal(content, '# Gen');
+    // Old location should be gone
+    assert.ok(!(await exists(join(dir, '.ryo', 'skills', 'ryo-gen'))));
+  });
+
+  test('removes old .github/prompts/ryo-*.prompt.md files', async () => {
+    await mkdir(join(dir, '.github', 'prompts'), { recursive: true });
+    await writeFile(join(dir, '.github', 'prompts', 'ryo-gen.prompt.md'), '# Gen', 'utf8');
+    await mkdir(join(dir, '.agents', 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, '.agents', 'skills', 'ryo-gen', 'SKILL.md'), '# Gen', 'utf8');
+    await writeFile(join(dir, '.agents', '.ryo-kit'), '', 'utf8');
+    await syncAction({ projectDir: dir });
+    assert.ok(!(await exists(join(dir, '.github', 'prompts', 'ryo-gen.prompt.md'))));
+  });
+
+  test('removes old root-level skills/ryo-* directories (Codex)', async () => {
+    await mkdir(join(dir, 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, 'skills', 'ryo-gen', 'SKILL.md'), '# Gen', 'utf8');
+    await mkdir(join(dir, '.agents', 'skills', 'ryo-gen'), { recursive: true });
+    await writeFile(join(dir, '.agents', 'skills', 'ryo-gen', 'SKILL.md'), '# Gen', 'utf8');
+    await writeFile(join(dir, '.agents', '.ryo-kit'), '', 'utf8');
+    await syncAction({ projectDir: dir });
+    assert.ok(!(await exists(join(dir, 'skills', 'ryo-gen'))));
+  });
+});
+```
+
+- [ ] **Step 2: Implement migration function**
+
+Add a `migrateOldLayout(projectDir)` function called at the start of `syncAction`:
+
+```js
+async function migrateOldLayout(projectDir) {
+  const migrations = [];
+
+  // 1. Move .ryo/skills/ -> .agents/skills/
+  const oldSkillsDir = join(projectDir, '.ryo', 'skills');
+  const newSkillsDir = join(projectDir, '.agents', 'skills');
+  if (await exists(oldSkillsDir) && !(await exists(newSkillsDir))) {
+    await ensureDir(dirname(newSkillsDir));
+    const { rename } = await import('node:fs/promises');
+    await rename(oldSkillsDir, newSkillsDir);
+    await writeFile(join(projectDir, '.agents', '.ryo-kit'), '', 'utf8');
+    migrations.push('Moved .ryo/skills/ → .agents/skills/');
+  }
+
+  // 2. Remove old .github/prompts/ryo-*.prompt.md
+  const oldPromptsDir = join(projectDir, '.github', 'prompts');
+  if (await exists(oldPromptsDir)) {
+    const entries = await readdir(oldPromptsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.startsWith('ryo-') && entry.name.endsWith('.prompt.md')) {
+        await unlink(join(oldPromptsDir, entry.name));
+        migrations.push(`Removed old Copilot prompt: ${entry.name}`);
+      }
+    }
+  }
+
+  // 3. Remove old root-level skills/ryo-* (Codex)
+  const oldCodexSkills = join(projectDir, 'skills');
+  if (await exists(oldCodexSkills)) {
+    const entries = await readdir(oldCodexSkills, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.startsWith('ryo-')) {
+        await rm(join(oldCodexSkills, entry.name), { recursive: true, force: true });
+        migrations.push(`Removed old Codex skill dir: skills/${entry.name}`);
+      }
+    }
+  }
+
+  // 4. Migrate .windsurfrules blocks (handled by WindsurfRuntime.uninstall legacy cleanup)
+
+  return migrations;
+}
+```
+
+- [ ] **Step 3: Run tests**
+
+Run: `node --test test/sync.test.js`
+Expected: All PASS
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/cli/commands/sync.js test/sync.test.js
+git commit -m "feat: add migration logic for old layout in ryo sync"
+```
+
+---
+
+### Task 16: Update remaining template files
+
+**Files:**
+- Modify: `templates/core-skills/ryo-add-agent.skill.md`
+- Modify: `templates/core-skills/ryo-retro.skill.md`
+
+- [ ] **Step 1: Check for `.ryo/skills/` references**
+
+Run: `grep -rn '.ryo/skills/' templates/`
+
+- [ ] **Step 2: Replace any remaining `.ryo/skills/` references with `.agents/skills/`**
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add templates/
+git commit -m "feat: update remaining templates to use .agents/skills/"
+```
+
+---
+
+### Task 17: Add unit tests for agent-block.js
+
+**Files:**
+- Create: `test/agent-block.test.js`
+
+- [ ] **Step 1: Write tests**
+
+```js
+import { test, describe, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { rm } from 'node:fs/promises';
+import {
+  formatAgentBlock, upsertAgentBlock, removeAgentBlock,
+  AGENT_BLOCK_START, AGENT_BLOCK_END,
+} from '../src/utils/agent-block.js';
+
+async function makeTempDir() {
+  return await mkdtemp(join(tmpdir(), 'ryo-kit-agent-block-test-'));
+}
+
+describe('formatAgentBlock', () => {
+  test('formats agent with role and responsibilities', () => {
+    const block = formatAgentBlock({
+      name: 'builder',
+      role: 'Code Builder',
+      description: 'Builds things',
+      responsibilities: ['write code', 'run tests'],
+      handoff_to: ['reviewer'],
+    });
+    assert.ok(block.includes('### builder — Code Builder'));
+    assert.ok(block.includes('Builds things'));
+    assert.ok(block.includes('- write code'));
+    assert.ok(block.includes('**Hands off to:** reviewer'));
+  });
+});
+
+describe('upsertAgentBlock', () => {
+  let dir;
+  beforeEach(async () => { dir = await makeTempDir(); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  test('creates config file with agent block', async () => {
+    const file = join(dir, 'AGENTS.md');
+    await upsertAgentBlock(file, { name: 'builder', description: 'test' });
+    const content = await readFile(file, 'utf8');
+    assert.ok(content.includes(AGENT_BLOCK_START));
+    assert.ok(content.includes('builder'));
+    assert.ok(content.includes(AGENT_BLOCK_END));
+  });
+
+  test('appends to existing agent block', async () => {
+    const file = join(dir, 'AGENTS.md');
+    await upsertAgentBlock(file, { name: 'builder', description: 'builds' });
+    await upsertAgentBlock(file, { name: 'reviewer', description: 'reviews' });
+    const content = await readFile(file, 'utf8');
+    assert.ok(content.includes('builder'));
+    assert.ok(content.includes('reviewer'));
+  });
+
+  test('does not clobber existing content', async () => {
+    const file = join(dir, 'AGENTS.md');
+    await writeFile(file, '# My Agents\n\nExisting content.\n', 'utf8');
+    await upsertAgentBlock(file, { name: 'builder', description: 'test' });
+    const content = await readFile(file, 'utf8');
+    assert.ok(content.includes('Existing content.'));
+    assert.ok(content.includes(AGENT_BLOCK_START));
+  });
+});
+
+describe('removeAgentBlock', () => {
+  let dir;
+  beforeEach(async () => { dir = await makeTempDir(); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  test('removes agent block', async () => {
+    const file = join(dir, 'AGENTS.md');
+    await writeFile(file, '# Keep\n', 'utf8');
+    await upsertAgentBlock(file, { name: 'builder', description: 'test' });
+    await removeAgentBlock(file);
+    const content = await readFile(file, 'utf8');
+    assert.ok(!content.includes(AGENT_BLOCK_START));
+    assert.ok(content.includes('Keep'));
+  });
+
+  test('is safe when file does not exist', async () => {
+    await removeAgentBlock(join(dir, 'nonexistent.md'));
+  });
+});
+```
+
+- [ ] **Step 2: Run tests**
+
+Run: `node --test test/agent-block.test.js`
+Expected: All PASS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add test/agent-block.test.js
+git commit -m "test: add unit tests for agent-block utilities"
+```
+
+---
+
+### Task 18: Clean up dead code
+
+**Files:**
+- Modify: `src/runtimes/claude-code.js`
+
+- [ ] **Step 1: Remove `removeRyoSkillDirs` export** (no longer imported by any runtime)
+
+- [ ] **Step 2: Run all tests to verify nothing depends on it**
+
+Run: `node --test test/runtimes.test.js test/scaffolder.test.js test/sync.test.js test/symlink.test.js test/toml-agent.test.js test/agent-block.test.js`
+Expected: All PASS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/runtimes/claude-code.js
+git commit -m "chore: remove dead removeRyoSkillDirs function"
+```
+
+---
+
+### Task 19: Fix sync to check org-wide context
+
+**Files:**
+- Modify: `src/cli/commands/sync.js`
+
+- [ ] **Step 1: Update syncAction to check `~/.ryo/org-context.yaml` as fallback**
+
+Match the same precedence chain used by `gen.js`:
+
+```js
+import { homedir } from 'node:os';
+
+// In syncAction:
+const orgWideContextPath = join(homedir(), '.ryo', 'org-context.yaml');
+const repoContextPath = join(projectDir, '.ryo', 'org-context.yaml');
+let contextPath;
+if (await exists(repoContextPath)) {
+  contextPath = repoContextPath;
+} else if (await exists(orgWideContextPath)) {
+  contextPath = orgWideContextPath;
+} else {
+  throw new Error('No org context found. Run `ryo init` first.');
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add src/cli/commands/sync.js
+git commit -m "fix: sync checks org-wide context as fallback"
+```
+
+---
+
+### Task 20: Final integration test — all tests green
+
+**This is the final task.**
 
 - [ ] **Step 1: Run all tests**
 
