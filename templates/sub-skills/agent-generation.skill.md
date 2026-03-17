@@ -112,8 +112,28 @@ gate:
   type: [human | automated | hybrid]
   criteria:
     - [criterion that must pass before handoff]
+persona:
+  displayName: [A distinct first name that fits the agent's character — e.g., "Winston", "Maya", "Kai"]
+  icon: [A unique emoji reflecting the role — e.g., "🏗️", "🔧", "🔍"]
+  communicationStyle: >
+    [2-3 sentences describing how this agent communicates. Include tone, vocabulary
+    tendencies, and any distinctive patterns. Each agent should sound different.]
+  identity: >
+    [1-2 sentences grounding the agent's perspective. Include experience level,
+    values, and what they prioritize when making decisions.]
 ---
 ```
+
+### Persona Guidelines
+
+When generating persona data for agents:
+
+1. **Unique names** — Each agent must have a different `displayName`. Choose names that feel natural, not jokey.
+2. **Unique icons** — No two agents in the same project should share an `icon` emoji.
+3. **Distinct voices** — Write `communicationStyle` so that responses from different agents would sound noticeably different. Vary tone (formal vs casual), vocabulary (technical vs accessible), and tendencies (asks questions vs states conclusions).
+4. **Grounded identity** — `identity` should explain *why* this agent thinks the way it does. Connect it to their role and experience.
+
+If the user opted out of persona data in their decisions (check `.ryo/.state/decisions.md` for a "## Persona Data" entry with "no"), omit the `persona` field entirely from generated agents.
 
 ### Markdown Body
 
