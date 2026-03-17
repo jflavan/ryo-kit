@@ -1,23 +1,32 @@
 import { join } from 'node:path';
-import { writeFile, unlink, readdir } from 'node:fs/promises';
 import { BaseRuntime } from './base.js';
-import { ensureDir, ensureParentDir, exists } from '../utils/fs.js';
 import { upsertRyoBlock, removeRyoBlock } from './claude-code.js';
+import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
 
 export class CopilotRuntime extends BaseRuntime {
   get name() { return 'copilot'; }
 
   get skillsDir() {
-    return join(this.projectDir, '.github', 'prompts');
+    return join(this.projectDir, '.github', 'skills');
+  }
+
+  get agentsDir() {
+    return join(this.projectDir, '.github', 'agents');
   }
 
   get configFile() {
     return join(this.projectDir, '.github', 'copilot-instructions.md');
   }
 
-  async installSkill(skillName, skillContent) {
-    await ensureDir(this.skillsDir);
-    await writeFile(join(this.skillsDir, `ryo-${skillName}.prompt.md`), skillContent, 'utf8');
+  async installSkill(skillName, canonicalSkillDir) {
+    const linkPath = join(this.skillsDir, skillName);
+    await createSymlink(canonicalSkillDir, linkPath);
+  }
+
+  async installAgent(agentName, agentMeta) {
+    const source = join(this.projectDir, '.ryo', 'agents', `${agentName}.agent.md`);
+    const linkPath = join(this.agentsDir, `${agentName}.agent.md`);
+    await createSymlink(source, linkPath);
   }
 
   async updateConfig(contextRef) {
@@ -25,17 +34,8 @@ export class CopilotRuntime extends BaseRuntime {
   }
 
   async uninstall() {
-    await removeRyoCopilotPrompts(this.skillsDir);
+    await removeRyoKitSymlinks(this.skillsDir);
+    await removeRyoKitSymlinks(this.agentsDir);
     await removeRyoBlock(this.configFile);
-  }
-}
-
-async function removeRyoCopilotPrompts(skillsDir) {
-  if (!await exists(skillsDir)) return;
-  const entries = await readdir(skillsDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isFile() && entry.name.startsWith('ryo-') && entry.name.endsWith('.prompt.md')) {
-      await unlink(join(skillsDir, entry.name));
-    }
   }
 }

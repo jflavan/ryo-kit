@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END } from './base.js';
 import { ensureDir, ensureParentDir, readIfExists, exists } from '../utils/fs.js';
+import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
 
 export class ClaudeCodeRuntime extends BaseRuntime {
   get name() { return 'claude-code'; }
@@ -10,14 +11,23 @@ export class ClaudeCodeRuntime extends BaseRuntime {
     return join(this.projectDir, '.claude', 'skills');
   }
 
+  get agentsDir() {
+    return join(this.projectDir, '.claude', 'agents');
+  }
+
   get configFile() {
     return join(this.projectDir, 'CLAUDE.md');
   }
 
-  async installSkill(skillName, skillContent) {
-    const dir = join(this.skillsDir, `ryo-${skillName}`);
-    await ensureDir(dir);
-    await writeFile(join(dir, 'SKILL.md'), skillContent, 'utf8');
+  async installSkill(skillName, canonicalSkillDir) {
+    const linkPath = join(this.skillsDir, skillName);
+    await createSymlink(canonicalSkillDir, linkPath);
+  }
+
+  async installAgent(agentName, agentMeta) {
+    const source = join(this.projectDir, '.ryo', 'agents', `${agentName}.agent.md`);
+    const linkPath = join(this.agentsDir, `${agentName}.md`);
+    await createSymlink(source, linkPath);
   }
 
   async updateConfig(contextRef) {
@@ -25,7 +35,8 @@ export class ClaudeCodeRuntime extends BaseRuntime {
   }
 
   async uninstall() {
-    await removeRyoSkillDirs(this.skillsDir);
+    await removeRyoKitSymlinks(this.skillsDir);
+    await removeRyoKitSymlinks(this.agentsDir);
     await removeRyoBlock(this.configFile);
   }
 }

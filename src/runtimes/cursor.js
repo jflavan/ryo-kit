@@ -1,23 +1,29 @@
 import { join } from 'node:path';
-import { writeFile, unlink, readdir } from 'node:fs/promises';
 import { BaseRuntime } from './base.js';
-import { ensureDir, exists } from '../utils/fs.js';
 import { upsertRyoBlock, removeRyoBlock } from './claude-code.js';
+import { upsertAgentBlock, removeAgentBlock } from '../utils/agent-block.js';
 
 export class CursorRuntime extends BaseRuntime {
   get name() { return 'cursor'; }
 
-  get skillsDir() {
-    return join(this.projectDir, '.cursor', 'rules');
+  get skillsDir() { return null; }
+
+  get agentsDir() { return null; }
+
+  get agentConfigFile() {
+    return join(this.projectDir, 'AGENTS.md');
   }
 
   get configFile() {
     return join(this.projectDir, '.cursorrules');
   }
 
-  async installSkill(skillName, skillContent) {
-    await ensureDir(this.skillsDir);
-    await writeFile(join(this.skillsDir, `ryo-${skillName}.md`), skillContent, 'utf8');
+  async installSkill(_skillName, _canonicalSkillDir) {
+    // No-op — Cursor auto-discovers from .agents/skills/
+  }
+
+  async installAgent(agentName, agentMeta) {
+    await upsertAgentBlock(this.agentConfigFile, agentMeta);
   }
 
   async updateConfig(contextRef) {
@@ -25,17 +31,7 @@ export class CursorRuntime extends BaseRuntime {
   }
 
   async uninstall() {
-    await removeRyoCursorRules(this.skillsDir);
+    await removeAgentBlock(this.agentConfigFile);
     await removeRyoBlock(this.configFile);
-  }
-}
-
-async function removeRyoCursorRules(skillsDir) {
-  if (!await exists(skillsDir)) return;
-  const entries = await readdir(skillsDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isFile() && entry.name.startsWith('ryo-') && entry.name.endsWith('.md')) {
-      await unlink(join(skillsDir, entry.name));
-    }
   }
 }
