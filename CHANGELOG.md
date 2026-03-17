@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-03-17
+
+### Added
+
+- **Documentation mode** — agent-driven project documentation via `/ryo-docs`
+  - `ryo docs` CLI command installs the docs skill to configured runtimes
+  - `/ryo-docs` slash command orchestrates a 6-step documentation workflow: load context, ask user, scan & assess, present plan, generate docs, wrap up
+  - Supports multiple audiences: onboarding, external developers, internal team, or all
+  - Agents write docs from their domain perspective with consistent footer comments
+  - Manifest-based staleness detection using git history for refresh cycles
+  - Cross-session resilience via `docs-manifest.md` and `docs-progress.md` state files
+
 ## [0.2.1] - 2026-03-17
 
 ### Added
