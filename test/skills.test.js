@@ -26,6 +26,20 @@ describe('skill template validation', () => {
     });
   }
 
+  it('all core-skills have a trigger field for slash command invocation', async () => {
+    const coreDir = join(TEMPLATES_DIR, 'core-skills');
+    const files = await readdir(coreDir);
+    for (const file of files.filter(f => f.endsWith('.skill.md'))) {
+      const content = await readFile(join(coreDir, file), 'utf8');
+      const { data } = parseFrontmatter(content);
+      assert.ok(data.trigger, `core-skills/${file} missing frontmatter 'trigger'`);
+      assert.ok(
+        data.trigger.startsWith('/ryo-'),
+        `core-skills/${file} trigger should start with '/ryo-', got '${data.trigger}'`,
+      );
+    }
+  });
+
   it('all fragment cross-references point to existing files', async () => {
     const fragmentFiles = await readdir(FRAGMENT_DIR);
     assert.ok(fragmentFiles.includes('org-context-prompt.md'));
