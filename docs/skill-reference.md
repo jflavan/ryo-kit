@@ -152,6 +152,40 @@ Skills are markdown prompt files installed into your AI coding tool. They run in
 
 ---
 
+## /ryo-conference
+
+**Purpose:** Multi-agent collaborative discussion. Brings your agent team together to discuss topics from their unique perspectives.
+
+**When to use:** When you want input from multiple agents on a decision, design question, or tradeoff.
+
+**What it does:**
+
+1. Reads all agent definitions from `.ryo/agents/`
+2. Asks what you'd like to discuss (or uses the topic from your invocation)
+3. For each message, selects 2-4 relevant agents based on topic and their responsibilities
+4. Each agent responds in turn under a clear header with their name, icon, and role
+5. Uses `persona` data (displayName, icon, communicationStyle, identity) for distinct voices
+6. Falls back to inferring personality from role/description if persona data is missing
+7. Continues until you say "end conference" or move on
+
+**Agent selection scales with team size:**
+
+| Team Size | Agents Per Message |
+|-----------|-------------------|
+| 2-3 agents | All agents respond |
+| 4-6 agents | 2-3 most relevant |
+| 7+ agents | 3-4 most relevant |
+
+**Example:**
+
+```
+/ryo-conference should we use GraphQL or REST for the public API?
+```
+
+Each selected agent responds from their domain — the architect might weigh scalability, the builder might discuss developer experience, and the security reviewer might flag authentication concerns.
+
+---
+
 ## Sub-Skills (Internal)
 
 These are invoked by `/ryo-gen` and `/ryo-evolve`, not directly by users:
