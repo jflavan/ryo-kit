@@ -42,6 +42,10 @@ Agent definitions in `.ryo/agents/*.agent.md` (YAML frontmatter).
 | `tools` | string[] | No | Allowed tool categories |
 | `gate.type` | enum | No | `human`, `automated`, or `hybrid` |
 | `gate.criteria` | string[] | No | Validation criteria before handoff |
+| `persona.displayName` | string | No | Human-friendly name for conference mode |
+| `persona.icon` | string | No | Emoji identifier for the agent |
+| `persona.communicationStyle` | string | No | How the agent communicates (tone, vocabulary) |
+| `persona.identity` | string | No | Grounding statement for the agent's perspective |
 
 ## SkillDefSchema
 
