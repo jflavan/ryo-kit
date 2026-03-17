@@ -6,6 +6,7 @@ export class BaseRuntime {
   get name() { throw new Error('Not implemented'); }
   get skillsDir() { throw new Error('Not implemented'); }
   get agentsDir() { return null; }
+  get agentConfigFile() { return null; }
   get configFile() { throw new Error('Not implemented'); }
 
   async installSkill(skillName, canonicalSkillDir) { throw new Error('Not implemented'); }

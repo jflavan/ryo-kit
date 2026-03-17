@@ -15,6 +15,10 @@ export class CodexRuntime extends BaseRuntime {
     return join(this.projectDir, '.codex', 'agents');
   }
 
+  get agentConfigFile() {
+    return join(this.projectDir, 'AGENTS.md');
+  }
+
   get configFile() {
     return join(this.projectDir, 'AGENTS.md');
   }

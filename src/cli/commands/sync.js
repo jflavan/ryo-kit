@@ -6,6 +6,7 @@ import { readYaml } from '../../utils/yaml.js';
 import { getRuntimeForName } from '../../scaffolder/skill-writer.js';
 import { parseFrontmatter } from '../../context/schema.js';
 import { removeRyoKitSymlinks } from '../../utils/symlink.js';
+import { removeAgentBlock } from '../../utils/agent-block.js';
 
 /**
  * Migrate old layout conventions to the current layout.
@@ -126,6 +127,11 @@ export async function syncAction({ projectDir, force } = {}) {
     for (const skillName of skills) {
       const canonicalDir = join(skillsSourceDir, skillName);
       await runtime.installSkill(skillName, canonicalDir);
+    }
+
+    // Clean stale agent blocks from config files
+    if (runtime.agentConfigFile) {
+      await removeAgentBlock(runtime.agentConfigFile);
     }
 
     // Install agents

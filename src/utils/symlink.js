@@ -1,4 +1,4 @@
-import { symlink, lstat, readlink, unlink, readdir } from 'node:fs/promises';
+import { symlink, lstat, readlink, unlink, readdir, rm } from 'node:fs/promises';
 import { relative, dirname, resolve } from 'node:path';
 import { ensureParentDir, exists } from './fs.js';
 
@@ -6,7 +6,11 @@ export async function createSymlink(target, linkPath) {
   await ensureParentDir(linkPath);
   try {
     const stats = await lstat(linkPath);
-    if (stats.isSymbolicLink()) await unlink(linkPath);
+    if (stats.isSymbolicLink()) {
+      await unlink(linkPath);
+    } else {
+      await rm(linkPath, { recursive: true, force: true });
+    }
   } catch { /* does not exist */ }
 
   const relTarget = relative(dirname(linkPath), target);
