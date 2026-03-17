@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-03-17
+
+### Added
+
+- **Conference mode** — multi-agent collaborative discussions via `/ryo-conference`
+  - `ryo conference` CLI command installs the conference skill to configured runtimes
+  - `/ryo-conference` slash command orchestrates multi-agent discussion sessions
+  - Selects 2-4 relevant agents per message based on topic and responsibilities
+  - Each agent responds in character with structured turn-taking
+- `persona` field on `AgentDefSchema` — optional object with `displayName`, `icon`, `communicationStyle`, and `identity` for rich agent personalities
+- Persona generation in the agent-generation sub-skill — agents are created with distinct names, icons, and communication styles
+- Persona opt-in question in `/ryo-gen` Phase 2 clarification dialogue
+
 ## [0.2.0] - 2026-03-16
 
 ### Added
