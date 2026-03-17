@@ -240,3 +240,33 @@ The actual conference happens in your AI tool when you invoke `/ryo-conference`.
 npx ryo-kit conference
 npx ryo-kit conference --yes
 ```
+
+## ryo docs
+
+Install documentation mode for agent-driven doc generation.
+
+```sh
+npx ryo-kit docs [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-y, --yes` | Skip confirmation prompts |
+
+**What it does:**
+
+1. Reads `org-context.yaml` to determine configured runtimes
+2. Installs the `ryo-docs` skill template into `.agents/skills/`
+3. Runs `ryo sync` to distribute the skill to all configured runtimes
+4. Prints instructions to invoke `/ryo-docs` in your AI tool
+
+The actual documentation generation happens in your AI tool when you invoke `/ryo-docs`. The CLI just installs the skill.
+
+**Example:**
+
+```sh
+npx ryo-kit docs
+npx ryo-kit docs --yes
+```
