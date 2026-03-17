@@ -30,7 +30,7 @@ And invoke `/ryo-evolve` in your AI tool.
 You can edit any file in `.ryo/` directly:
 
 - **Agent definitions** (`.ryo/agents/*.agent.md`) — adjust responsibilities, gate criteria, handoff rules
-- **Skill definitions** (`.ryo/skills/*/SKILL.md`) — modify the actual prompts
+- **Skill definitions** (`.agents/skills/*/SKILL.md`) — modify the actual prompts
 - **Process definition** (`.ryo/process.md`) — change phases, gates, scale rules
 - **Workflows** (`.ryo/workflows/*.workflow.md`) — adjust step sequences
 

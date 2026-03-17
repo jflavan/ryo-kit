@@ -39,7 +39,7 @@ npx ryo-kit init --yes
 
 ## ryo gen
 
-Project-level scaffold. Creates the `.ryo/` directory in the current repo and installs project skills.
+Project-level scaffold. Creates the `.ryo/` and `.agents/` directories in the current repo, installs project skills, and syncs to runtimes.
 
 ```sh
 npx ryo-kit gen [options]
@@ -54,10 +54,12 @@ npx ryo-kit gen [options]
 **What it does:**
 
 1. Reads `org-context.yaml` from `~/.ryo/` (org-wide) or `.ryo/` (repo-only)
-2. Creates the `.ryo/` directory tree: `agents/`, `skills/`, `workflows/`, `.state/`, `.customize/`
-3. Writes an empty `current-plan.md` stub in `.ryo/.state/`
-4. Installs project-level skills into the runtimes listed in org context
-5. Tells you to invoke `/ryo-gen` in your AI tool
+2. Creates the `.ryo/` directory tree: `agents/`, `workflows/`, `.state/`, `.customize/`
+3. Creates `.agents/skills/` as the canonical skill location with a `.ryo-kit` marker file
+4. Writes an empty `current-plan.md` stub in `.ryo/.state/`
+5. Installs project-level skills into `.agents/skills/`
+6. Runs `ryo sync` to distribute skills and agents to all configured runtimes
+7. Tells you to invoke `/ryo-gen` in your AI tool
 
 **When to use:** After `ryo init` in org-wide mode, run this in each repo that needs a framework. In repo-only mode, `ryo init` already creates `.ryo/`.
 
@@ -80,7 +82,8 @@ npx ryo-kit evolve [options]
 1. Re-reads `org-context.yaml`
 2. Updates installed skill templates with latest versions from the package
 3. Installs/updates the `/ryo-evolve` skill
-4. Tells you to invoke `/ryo-evolve` in your AI tool
+4. Runs `ryo sync` to distribute skills and agents to all configured runtimes
+5. Tells you to invoke `/ryo-evolve` in your AI tool
 
 The actual framework re-generation happens in your AI tool when you run `/ryo-evolve`. The CLI just prepares the skill.
 
@@ -105,6 +108,48 @@ npx ryo-kit add skill [options]
 - `add skill` — installs the `/ryo-add-skill` skill and prints instructions
 
 The actual creation is conversational and happens in your AI tool.
+
+## ryo sync
+
+Sync agents and skills from canonical locations to all configured coding tool runtimes.
+
+```sh
+npx ryo-kit sync [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Overwrite even if `.agents/` was not created by ryo-kit |
+
+**What it does:**
+
+1. Runs migration from old layout conventions (moves `.ryo/skills/` to `.agents/skills/`, cleans old Copilot prompts and Codex root-level skills)
+2. Reads `org-context.yaml` to determine configured runtimes
+3. Checks for conflicts with user-owned `.agents/` directories (uses the `.ryo-kit` marker file)
+4. Scans `.agents/skills/` for skill directories and `.ryo/agents/` for agent definitions
+5. For each runtime: removes stale symlinks and agent blocks, then installs current skills and agents
+
+**Installation mechanisms by runtime:**
+
+| Runtime | Skills | Agents |
+|---------|--------|--------|
+| Claude Code | Symlink to `.claude/skills/` | Symlink to `.claude/agents/` |
+| Copilot | Symlink to `.github/skills/` | Symlink to `.github/agents/` |
+| Cursor | No-op (auto-discovers `.agents/skills/`) | Agent block in `AGENTS.md` |
+| Codex | No-op (auto-discovers `.agents/skills/`) | TOML file in `.codex/agents/` + block in `AGENTS.md` |
+| Windsurf | Copy + transform to `.windsurf/rules/` | Agent block in `AGENTS.md` |
+| Gemini CLI | No-op (auto-discovers `.agents/skills/`) | Agent block in `GEMINI.md` |
+
+**When to use:** After manually adding or removing skills/agents. Also runs automatically as part of `ryo gen` and `ryo evolve`.
+
+**Example:**
+
+```sh
+npx ryo-kit sync
+npx ryo-kit sync --force
+```
 
 ## ryo check
 

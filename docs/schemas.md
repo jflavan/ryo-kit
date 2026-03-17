@@ -45,7 +45,7 @@ Agent definitions in `.ryo/agents/*.agent.md` (YAML frontmatter).
 
 ## SkillDefSchema
 
-Skill definitions in `.ryo/skills/*/SKILL.md` (YAML frontmatter).
+Skill definitions in `.agents/skills/*/SKILL.md` (YAML frontmatter).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

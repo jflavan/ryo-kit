@@ -1,41 +1,67 @@
 # Runtime Integration
 
-ryo-kit installs skills into 6 AI coding tools. Each runtime has its own conventions for where files go and how slash commands work.
+ryo-kit installs skills and agents into 6 AI coding tools. Skills are authored in a canonical location (`.agents/skills/`) and distributed to each runtime via symlinks, copies, or auto-discovery. Agents defined in `.ryo/agents/` are similarly distributed.
+
+## Canonical Layout
+
+```
+.agents/
+├── skills/
+│   ├── ryo-gen/
+│   │   └── SKILL.md
+│   ├── ryo-help/
+│   │   └── SKILL.md
+│   └── ...
+└── .ryo-kit              # Marker file — identifies ryo-kit ownership
+
+.ryo/
+└── agents/
+    ├── builder.agent.md
+    ├── reviewer.agent.md
+    └── ...
+```
+
+The `ryo sync` command reads from these canonical locations and distributes to each configured runtime. `ryo gen` and `ryo evolve` run sync automatically.
 
 ## Supported Runtimes
 
-| Runtime | Skills Location | Config File | Slash Commands |
-|---------|----------------|-------------|----------------|
-| Claude Code | `.claude/skills/ryo-*/SKILL.md` | `CLAUDE.md` | Native via skill frontmatter |
-| Copilot | `.github/prompts/ryo-*.prompt.md` | `.github/copilot-instructions.md` | Native via prompt files |
-| Cursor | `.cursor/rules/ryo-*.md` | `.cursorrules` | No — skills installed as rules |
-| Codex | `skills/ryo-*/SKILL.md` | `AGENTS.md` | Native via skill files |
-| Windsurf | `.windsurfrules` (appended sections) | Same file | No — skills installed as rules |
-| Gemini CLI | `.gemini/skills/ryo-*/SKILL.md` | `GEMINI.md` | Native via skill files |
+| Runtime | Skills | Agents | Mechanism |
+|---------|--------|--------|-----------|
+| Claude Code | `.claude/skills/` (symlinks) | `.claude/agents/` (symlinks) | Symlinks from canonical |
+| Copilot | `.github/skills/` (symlinks) | `.github/agents/` (symlinks) | Symlinks from canonical |
+| Cursor | Auto-discovers `.agents/skills/` | `AGENTS.md` (managed block) | No-op / Config block |
+| Codex | Auto-discovers `.agents/skills/` | `.codex/agents/` (TOML) + `AGENTS.md` (block) | No-op / TOML + Config block |
+| Windsurf | `.windsurf/rules/` (copies) | `AGENTS.md` (managed block) | Copy + frontmatter transform |
+| Gemini CLI | Auto-discovers `.agents/skills/` | `GEMINI.md` (managed block) | No-op / Config block |
 
-## How Installation Works
+## How Sync Works
 
-When you run `ryo init` or `ryo gen`, the CLI:
+When you run `ryo sync` (or `ryo gen`/`ryo evolve`, which call sync automatically):
 
-1. Creates a runtime instance for each AI tool you selected
-2. Reads skill templates from the ryo-kit package's `templates/` directory
-3. Calls `installSkill(name, content)` on each runtime to write the skill file
-4. Calls `updateConfig(contextRef)` to add a reference block to the runtime's config file
-
-The config file reference block is wrapped in HTML comment sentinels (`<!-- ryo-kit:start -->` / `<!-- ryo-kit:end -->`). This allows ryo-kit to update or remove its additions without affecting your existing config.
+1. Runs migration from old layout conventions if needed
+2. Reads `org-context.yaml` to determine which runtimes are configured
+3. Checks that `.agents/` was created by ryo-kit (via the `.ryo-kit` marker file)
+4. Scans `.agents/skills/` for skill directories and `.ryo/agents/` for `.agent.md` files
+5. For each configured runtime:
+   - Removes stale symlinks from the runtime's skills/agents directories
+   - Removes stale agent blocks from config files
+   - Calls `installSkill(skillName, canonicalDir)` for each skill
+   - Calls `installAgent(agentName, agentMeta)` for each agent
 
 ## Runtime Details
 
 ### Claude Code
 
-Skills are installed as directories under `.claude/skills/`:
+Skills and agents are symlinked from canonical locations:
 
 ```
 .claude/skills/
-├── ryo-gen/
-│   └── SKILL.md
-├── ryo-help/
-│   └── SKILL.md
+├── ryo-gen -> ../../.agents/skills/ryo-gen       # symlink
+├── ryo-help -> ../../.agents/skills/ryo-help     # symlink
+└── ...
+
+.claude/agents/
+├── builder.md -> ../../.ryo/agents/builder.agent.md   # symlink
 └── ...
 ```
 
@@ -45,77 +71,78 @@ For org-wide installation, skills go to `~/.claude/skills/`.
 
 ### GitHub Copilot
 
-Skills are installed as prompt files in `.github/prompts/`:
+Skills and agents are symlinked:
 
 ```
-.github/prompts/
-├── ryo-gen.prompt.md
-├── ryo-help.prompt.md
+.github/skills/
+├── ryo-gen -> ../../.agents/skills/ryo-gen       # symlink
+└── ...
+
+.github/agents/
+├── builder.agent.md -> ../../.ryo/agents/builder.agent.md   # symlink
 └── ...
 ```
 
-`.github/copilot-instructions.md` receives a reference block. Users invoke skills by typing `/<name>` in the Copilot chat.
-
-Copilot also supports custom agents in `.github/agents/` — ryo-kit can optionally generate agent profiles there.
+`.github/copilot-instructions.md` receives a reference block.
 
 ### Cursor
 
-Skills are installed as rule files in `.cursor/rules/`:
+Cursor auto-discovers skills from `.agents/skills/` — no symlinks needed. Agents are installed as a managed block in `AGENTS.md`:
+
+```markdown
+<!-- ryo-kit:agents:start -->
+# ryo-kit Agents
+
+### builder — Builder
+Implements code based on specifications
+...
+<!-- ryo-kit:agents:end -->
+```
+
+`.cursorrules` receives a reference block. Cursor does not support native slash commands — users invoke skills by asking the AI to follow the relevant rule.
+
+### Codex
+
+Codex auto-discovers skills from `.agents/skills/`. Agents are installed in two places:
+
+1. **TOML files** in `.codex/agents/` for native Codex agent support
+2. **Managed block** in `AGENTS.md` for general context
 
 ```
-.cursor/rules/
-├── ryo-gen.md
+.codex/agents/
+├── builder.toml          # Generated TOML with sentinel comment
+└── ...
+```
+
+TOML files include a sentinel comment (`# Generated by ryo-kit from .ryo/agents/...`) so ryo-kit can identify and clean up its own files during uninstall.
+
+### Windsurf
+
+Windsurf does not support symlinks for skills. Skills are copied from `.agents/skills/` to `.windsurf/rules/` with frontmatter transformation (the `trigger` field is changed to `model_decision`):
+
+```
+.windsurf/rules/
+├── ryo-gen.md            # Copied and transformed
 ├── ryo-help.md
 └── ...
 ```
 
-`.cursorrules` receives a reference block. Cursor does not support native slash commands — users invoke skills by asking the AI to follow the relevant rule (e.g., "follow the ryo-gen rule").
-
-### Codex
-
-Skills are installed as directories under `skills/`:
-
-```
-skills/
-├── ryo-gen/
-│   └── SKILL.md
-├── ryo-help/
-│   └── SKILL.md
-└── ...
-```
-
-`AGENTS.md` receives a reference block. Skills use native slash commands.
-
-### Windsurf
-
-Windsurf has no separate skills directory. All skills are appended as named sections to `.windsurfrules`:
-
-```
-<!-- ryo-kit:ryo-gen:start -->
-[skill content]
-<!-- ryo-kit:ryo-gen:end -->
-
-<!-- ryo-kit:ryo-help:start -->
-[skill content]
-<!-- ryo-kit:ryo-help:end -->
-```
-
-Each skill gets its own sentinel pair. Users invoke skills by asking the AI to follow the relevant rule.
+Agents are installed as a managed block in `AGENTS.md`.
 
 ### Gemini CLI
 
-Skills are installed as directories under `.gemini/skills/`:
+Gemini CLI auto-discovers skills from `.agents/skills/`. Agents are installed as a managed block in `GEMINI.md`:
 
-```
-.gemini/skills/
-├── ryo-gen/
-│   └── SKILL.md
-├── ryo-help/
-│   └── SKILL.md
-└── ...
+```markdown
+<!-- ryo-kit:agents:start -->
+# ryo-kit Agents
+
+### builder — Builder
+...
+<!-- ryo-kit:agents:end -->
 ```
 
-`GEMINI.md` receives a reference block. Skills use native slash commands.
+`GEMINI.md` also receives a reference block for general config.
 
 ## The Base Runtime Interface
 
@@ -124,21 +151,35 @@ All runtimes extend `BaseRuntime` in `src/runtimes/base.js`:
 ```javascript
 class BaseRuntime {
   constructor(projectDir) { this.projectDir = projectDir; }
-  get name()       // Runtime identifier (e.g., 'claude-code')
-  get skillsDir()  // Where skills are stored
-  get configFile() // Path to the runtime's config file
+  get name()             // Runtime identifier (e.g., 'claude-code')
+  get skillsDir()        // Where skills are stored (null if auto-discovered)
+  get agentsDir()        // Where agents are stored (null if using config blocks)
+  get agentConfigFile()  // Path to the agent config file (null if using symlinks)
+  get configFile()       // Path to the runtime's config file
 
-  async installSkill(skillName, skillContent)  // Write a skill file
-  async updateConfig(contextRef)               // Add reference block to config
-  async uninstall()                            // Remove all ryo-kit additions
+  async installSkill(skillName, canonicalSkillDir)  // Create symlink or copy from canonical dir
+  async installAgent(agentName, agentMeta)          // Create symlink, TOML, or config block
+  async updateConfig(contextRef)                    // Add reference block to config
+  async uninstall()                                 // Remove all ryo-kit additions
 }
 ```
 
 Key behaviors:
 
+- **Symlinks over copies.** Where possible, runtimes create relative symlinks pointing back to `.agents/skills/` or `.ryo/agents/`. This keeps a single source of truth.
+- **Auto-discovery.** Runtimes that natively discover `.agents/skills/` (Cursor, Codex, Gemini CLI) use no-op `installSkill` methods.
+- **Agent blocks.** For runtimes without native agent file conventions, agents are rendered as Markdown sections inside managed sentinel blocks (`<!-- ryo-kit:agents:start -->` / `<!-- ryo-kit:agents:end -->`).
 - **Never clobber existing content.** Config updates append/merge. If a config file already exists, existing content is preserved.
-- **Clean uninstall.** `uninstall()` removes only ryo-kit additions (files and config blocks), leaving user content untouched.
-- **Sentinel blocks.** Config references use `<!-- ryo-kit:start -->` / `<!-- ryo-kit:end -->` markers for safe insertion and removal.
+- **Clean uninstall.** `uninstall()` removes only ryo-kit additions (symlinks, TOML files, config blocks), leaving user content untouched.
+- **Cross-platform.** On Windows, junctions are used for directory symlinks. If symlinks are not supported at all, falls back to copying.
+
+## Migration from Old Layout
+
+The `ryo sync` command automatically handles migration from older layout conventions:
+
+1. Moves `.ryo/skills/` to `.agents/skills/` (and creates the `.ryo-kit` marker)
+2. Removes old Copilot prompt files (`.github/prompts/ryo-*.prompt.md`)
+3. Removes old Codex root-level skill directories (`skills/ryo-*`)
 
 ## Adding a New Runtime
 

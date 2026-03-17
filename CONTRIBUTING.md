@@ -38,7 +38,7 @@ bin/
 src/
   cli/
     index.js              # Commander.js program definition
-    commands/             # One file per CLI command (init, gen, evolve, add, check, update)
+    commands/             # One file per CLI command (init, gen, evolve, sync, add, check, update)
     prompts/
       org-interview.js    # @clack/prompts TUI interview flow
   context/
@@ -46,21 +46,24 @@ src/
     detector.js           # Auto-detects existing project artifacts
     writer.js             # Writes org-context.yaml and constitution.md
   scaffolder/
-    directory.js          # Creates .ryo/ directory structure
-    skill-writer.js       # Writes SKILL.md files from templates
+    directory.js          # Creates .ryo/ and .agents/ directory structure
+    skill-writer.js       # Writes SKILL.md files to .agents/skills/ and installs into runtimes
     template-writer.js    # Writes agent/process templates
   runtimes/
     base.js               # BaseRuntime class — shared interface
-    claude-code.js        # .claude/skills/, CLAUDE.md
-    copilot.js            # .github/prompts/, copilot-instructions.md
-    cursor.js             # .cursor/rules/, .cursorrules
-    codex.js              # skills/ryo-*/SKILL.md, AGENTS.md
-    windsurf.js           # .windsurfrules
-    gemini-cli.js         # .gemini/skills/, GEMINI.md
+    claude-code.js        # .claude/skills/ + .claude/agents/ (symlinks), CLAUDE.md
+    copilot.js            # .github/skills/ + .github/agents/ (symlinks)
+    cursor.js             # Auto-discovers .agents/skills/, AGENTS.md agent blocks
+    codex.js              # Auto-discovers .agents/skills/, .codex/agents/ (TOML), AGENTS.md
+    windsurf.js           # .windsurf/rules/ (copies), AGENTS.md agent blocks
+    gemini-cli.js         # Auto-discovers .agents/skills/, GEMINI.md agent blocks
   utils/
     yaml.js               # YAML read/write helpers
     fs.js                 # File system helpers
     logger.js             # @clack/prompts-based logging
+    symlink.js            # Cross-platform symlink creation and cleanup
+    agent-block.js        # Managed agent blocks in Markdown config files
+    toml-agent.js         # TOML agent file generation for Codex
 templates/
   bootstrap/              # ryo-gen orchestrator skill
   sub-skills/             # agent-, skill-, process-, workflow-generation sub-skills
@@ -87,12 +90,29 @@ import path from 'node:path';
 
 export class YourRuntime extends BaseRuntime {
   get skillsDir() {
+    // Return the directory where skills should be symlinked/copied,
+    // or null if the runtime auto-discovers from .agents/skills/
     return path.join(this.projectDir, '.your-tool', 'skills');
   }
 
-  async installSkill(skillName, skillContent) {
-    // Write skillContent to this.skillsDir/<skillName>/SKILL.md
-    // Must not clobber existing files
+  get agentsDir() {
+    // Return the directory for agent symlinks, or null if using config blocks
+    return path.join(this.projectDir, '.your-tool', 'agents');
+  }
+
+  get agentConfigFile() {
+    // Return the config file path for agent blocks, or null if using symlinks
+    return null;
+  }
+
+  async installSkill(skillName, canonicalSkillDir) {
+    // Create a symlink from canonicalSkillDir to this.skillsDir/<skillName>
+    // Or copy if symlinks aren't supported
+    // No-op if the runtime auto-discovers from .agents/skills/
+  }
+
+  async installAgent(agentName, agentMeta) {
+    // Create a symlink, write a TOML file, or upsert an agent block
   }
 
   async updateConfig(contextRef) {

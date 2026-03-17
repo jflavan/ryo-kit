@@ -47,7 +47,7 @@ If you chose org-wide mode, run this in each repo:
 npx ryo-kit gen
 ```
 
-This creates the `.ryo/` directory structure and installs project-level skills. If you chose repo-only mode, `ryo init` already did this.
+This creates the `.ryo/` and `.agents/` directory structures, installs project-level skills to `.agents/skills/`, and syncs them to your configured runtimes. If you chose repo-only mode, `ryo init` already did this.
 
 ## Step 3: Generate your framework
 
@@ -66,7 +66,7 @@ The generator skill chain:
 5. **Generates a process definition** — phases, gates, and artifacts for your methodology
 6. **Generates workflows** — concrete sequences for common scenarios (new feature, bug fix, hotfix)
 7. **Validates** internal consistency
-8. **Installs** the generated skills into your AI tool
+8. **Syncs** skills and agents to your configured runtimes via `npx ryo-kit sync`
 
 Everything is written to `.ryo/` immediately as each phase completes. If your session ends mid-generation, the next `/ryo-gen` invocation resumes from where it left off.
 
