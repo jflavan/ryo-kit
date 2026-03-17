@@ -5,6 +5,7 @@ import { registerEvolve } from './commands/evolve.js';
 import { registerAdd } from './commands/add.js';
 import { registerCheck } from './commands/check.js';
 import { registerUpdate } from './commands/update.js';
+import { registerSync } from './commands/sync.js';
 
 export function run(argv) {
   const program = new Command();
@@ -19,6 +20,7 @@ export function run(argv) {
   registerAdd(program);
   registerCheck(program);
   registerUpdate(program);
+  registerSync(program);
 
   program.parse(argv);
 }
