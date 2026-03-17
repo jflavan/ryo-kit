@@ -4,6 +4,7 @@ import * as p from '@clack/prompts';
 import { exists } from '../../utils/fs.js';
 import { readYaml } from '../../utils/yaml.js';
 import { installSkillsForRuntimes } from '../../scaffolder/skill-writer.js';
+import { syncAction } from './sync.js';
 
 /**
  * Register the `ryo evolve` command on the given Commander program.
@@ -65,7 +66,17 @@ export async function evolveAction({ yes, projectDir } = {}) {
     }
   }
 
-  // 3. Tell user to run /ryo-evolve
+  // 3. Sync agents and skills to runtimes
+  s.start('Syncing agents and skills to runtimes…');
+  try {
+    await syncAction({ projectDir, force: true });
+    s.stop('Runtime sync complete.');
+  } catch (err) {
+    s.stop('Sync encountered an error.');
+    p.log.warn(String(err));
+  }
+
+  // 4. Tell user to run /ryo-evolve
   p.outro(
     'Skill templates updated.\n\n' +
     'Next step: open your AI tool and invoke /ryo-evolve\n' +

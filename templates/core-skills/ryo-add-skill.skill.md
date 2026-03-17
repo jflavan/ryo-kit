@@ -17,7 +17,7 @@ You are creating a new skill definition for the user's AI-driven development fra
 
 Before starting, confirm the framework is in place:
 
-1. Check that `.ryo/skills/` exists.
+1. Check that `.agents/skills/` exists.
 2. Check that `.ryo/agents/` exists and contains at least one `.agent.md` file.
 3. Check that `.ryo/process.md` exists.
 
@@ -30,7 +30,7 @@ If any of these are missing, stop and tell the user:
 
 ### Skills
 
-Read all `SKILL.md` files in `.ryo/skills/*/`. For each, extract from the YAML frontmatter:
+Read all `SKILL.md` files in `.agents/skills/*/`. For each, extract from the YAML frontmatter:
 - `name`
 - `description`
 - `trigger`
@@ -103,7 +103,7 @@ After hearing the skill's purpose, check against existing skills:
 
 ## Step 4: Generate the Skill Definition
 
-Create the directory `.ryo/skills/[skill-name]/` and write the file `.ryo/skills/[skill-name]/SKILL.md`.
+Create the directory `.agents/skills/[skill-name]/` and write the file `.agents/skills/[skill-name]/SKILL.md`.
 
 ### File format:
 
@@ -173,7 +173,7 @@ if the output is structured (e.g., markdown report, YAML file, etc.).]
 ### YAML frontmatter rules:
 
 - All fields must conform to the SkillDefSchema (see project spec).
-- `name` must be unique across all skills in `.ryo/skills/`.
+- `name` must be unique across all skills in `.agents/skills/`.
 - `trigger` should follow the project's naming convention (typically `/[kebab-case-name]`).
 - `agent` is optional. Omit the field entirely (do not set it to null or empty string) if the skill is standalone.
 - `runtimes` must include at least one runtime from the org's `tools.ai` list.
@@ -225,7 +225,7 @@ Present a summary of everything that was created and modified:
 ```
 ## Skill Created
 
-- File: .ryo/skills/[skill-name]/SKILL.md
+- File: .agents/skills/[skill-name]/SKILL.md
 - Trigger: [trigger]
 - Agent: [agent-name or "standalone"]
 - Runtimes: [list]
@@ -245,7 +245,7 @@ Present a summary of everything that was created and modified:
 
 ## Error Handling
 
-- **Skill name already exists:** Tell the user the name conflicts with `.ryo/skills/[name]/SKILL.md`. Ask them to choose a different name or modify the existing skill.
+- **Skill name already exists:** Tell the user the name conflicts with `.agents/skills/[name]/SKILL.md`. Ask them to choose a different name or modify the existing skill.
 - **Agent does not exist:** If the user specifies an agent that does not exist in `.ryo/agents/`, list the available agents and ask them to choose one, make it standalone, or create the agent first with `/ryo-add-agent`.
 - **Runtime not in org context:** If the user specifies a runtime not listed in `tools.ai`, warn them. The skill will not be installable for that runtime unless the org context is updated.
 - **File write fails:** Report the exact path and error. Do not proceed to subsequent steps.
@@ -259,4 +259,4 @@ Present a summary of everything that was created and modified:
 3. **Write the skill file immediately.** Write it as soon as the definition is finalized. Do not wait for workflow updates.
 4. **Respect the SkillDefSchema.** Every field in the YAML frontmatter must conform to the schema.
 5. **Write a complete prompt body.** The skill is useless without detailed instructions below the frontmatter. Do not generate a skeleton — generate a fully functional prompt.
-6. **Use kebab-case for directory and file names.** Convert skill names like "Security Scan" to `.ryo/skills/security-scan/SKILL.md`.
+6. **Use kebab-case for directory and file names.** Convert skill names like "Security Scan" to `.agents/skills/security-scan/SKILL.md`.

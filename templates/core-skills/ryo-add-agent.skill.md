@@ -19,7 +19,7 @@ Before starting, confirm the framework is in place:
 
 1. Check that `.ryo/agents/` exists and contains at least one `.agent.md` file.
 2. Check that `.ryo/process.md` exists.
-3. Check that `.ryo/skills/` exists.
+3. Check that `.agents/skills/` exists.
 
 If any of these are missing, stop and tell the user:
 > "No generated framework found. Run `/ryo-gen` first to generate the base framework, then use `/ryo-add-agent` to add new agents."

@@ -19,7 +19,7 @@ Before running any checks, read all of the following files. If a file does not e
 | File/Directory | Required? | Description |
 |---------------|-----------|-------------|
 | `.ryo/agents/*.agent.md` | Yes (at least 1) | Agent definitions |
-| `.ryo/skills/*/SKILL.md` | Yes (at least 1) | Skill definitions |
+| `.agents/skills/*/SKILL.md` | Yes (at least 1) | Skill definitions |
 | `.ryo/process.md` | Yes | Process definition |
 | `.ryo/workflows/*.workflow.md` | Yes (at least 1) | Workflow definitions |
 | `.ryo/org-context.yaml` or `~/.ryo/org-context.yaml` | Yes | Org context |
@@ -43,9 +43,9 @@ For every workflow file in `.ryo/workflows/`:
 
 For every workflow file in `.ryo/workflows/`:
 - Read the YAML frontmatter `steps` array.
-- For each step, check that every value in the `skills` array matches the `name` field in one of the `SKILL.md` files in `.ryo/skills/*/`.
+- For each step, check that every value in the `skills` array matches the `name` field in one of the `SKILL.md` files in `.agents/skills/*/`.
 
-**Error format:** `SKILL_NOT_FOUND: Workflow "[workflow-name]" step [N] references skill "[skill-name]" which does not exist in .ryo/skills/`
+**Error format:** `SKILL_NOT_FOUND: Workflow "[workflow-name]" step [N] references skill "[skill-name]" which does not exist in .agents/skills/`
 
 ### Check 3: Process Phase References in Workflows
 
@@ -75,7 +75,7 @@ Also check that every name in any `handoff_to` array corresponds to an actual ag
 
 For every agent in `.ryo/agents/`:
 - Check that at least one of the following is true:
-  - A skill in `.ryo/skills/` has an `agent` field matching this agent's name, OR
+  - A skill in `.agents/skills/` has an `agent` field matching this agent's name, OR
   - A workflow step in `.ryo/workflows/` uses this agent (the agent appears in a step's `agent` field)
 
 An agent with no skill association AND no workflow usage is likely dead weight.
@@ -84,7 +84,7 @@ An agent with no skill association AND no workflow usage is likely dead weight.
 
 ### Check 6: Skill Runtime Coverage
 
-For every skill in `.ryo/skills/`:
+For every skill in `.agents/skills/`:
 - Check that the `runtimes` array in its frontmatter includes at least one runtime from `tools.ai` in org-context.yaml.
 
 A skill that doesn't target any of the org's active runtimes will never be usable.

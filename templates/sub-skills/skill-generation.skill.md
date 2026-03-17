@@ -80,7 +80,7 @@ These skills serve the overall process, not a specific agent:
 
 ## Output Format
 
-For each skill, create a directory and file at `.ryo/skills/[skill-name]/SKILL.md` with the following structure.
+For each skill, create a directory and file at `.agents/skills/[skill-name]/SKILL.md` with the following structure.
 
 ### YAML Frontmatter (required fields from SkillDefSchema)
 
@@ -161,8 +161,8 @@ The minimum set for any org is: `plan`, `implement`, `test`, `review`. Every org
 ## Writing Instructions
 
 1. **Write each skill directory and file immediately after designing it.** Do not design all skills first and batch-write at the end.
-2. **Read `.ryo/skills/` before writing** to check for existing skill directories (relevant when resuming). Do not overwrite existing skills unless the user explicitly asks for regeneration.
-3. **Use kebab-case for directory names.** Example: `.ryo/skills/compliance-check/SKILL.md`, not `.ryo/skills/ComplianceCheck/SKILL.md`.
+2. **Read `.agents/skills/` before writing** to check for existing skill directories (relevant when resuming). Do not overwrite existing skills unless the user explicitly asks for regeneration.
+3. **Use kebab-case for directory names.** Example: `.agents/skills/compliance-check/SKILL.md`, not `.agents/skills/ComplianceCheck/SKILL.md`.
 4. **The SKILL.md body must be a complete, self-contained prompt.** An AI tool reading only the SKILL.md file (without any other context) should understand what to do. Include file paths, format specifications, and constraints directly in the prompt.
 5. **Reference the org's actual tech stack in skill prompts.** If the org uses TypeScript and React, the `implement` skill should mention TypeScript and React conventions. If the org uses Python and Django, reference those instead. Pull this from org-context.yaml's `stack` field.
 6. **Embed constitution principles** in relevant skill constraints sections. For example, if the constitution says "all public APIs must have OpenAPI specs," the `implement` skill's constraints should include that rule.
@@ -174,6 +174,6 @@ The minimum set for any org is: `plan`, `implement`, `test`, `review`. Every org
 
 - **No agent definitions found in `.ryo/agents/`:** You can still generate standalone skills (plan, implement, test, review, deploy). Warn that agent-specific skills cannot be created without agent definitions.
 - **No org-context.yaml found:** Stop. Report the error.
-- **`.ryo/skills/` directory does not exist:** Create it.
+- **`.agents/skills/` directory does not exist:** Create it.
 - **Existing skill directories present:** Read them. If resuming, skip skills that already exist. If regenerating, overwrite.
 - **A skill references an agent that does not exist:** This is an error. Either create the skill as standalone (remove the `agent` field) or skip it and report the issue.

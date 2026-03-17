@@ -5,6 +5,7 @@ import { exists, readIfExists } from '../../utils/fs.js';
 import { readYaml } from '../../utils/yaml.js';
 import { scaffoldProjectDir } from '../../scaffolder/directory.js';
 import { installSkillsForRuntimes } from '../../scaffolder/skill-writer.js';
+import { syncAction } from './sync.js';
 
 /**
  * Register the `ryo gen` command on the given Commander program.
@@ -85,7 +86,17 @@ export async function genAction({ yes, projectDir, repoOnly } = {}) {
     }
   }
 
-  // 5. Tell user to invoke /ryo-gen
+  // 5. Sync agents and skills to runtimes
+  s.start('Syncing agents and skills to runtimes…');
+  try {
+    await syncAction({ projectDir, force: true });
+    s.stop('Runtime sync complete.');
+  } catch (err) {
+    s.stop('Sync encountered an error.');
+    p.log.warn(String(err));
+  }
+
+  // 6. Tell user to invoke /ryo-gen
   const nextSteps = buildGenNextSteps(runtimeNames);
   p.outro(nextSteps);
 }

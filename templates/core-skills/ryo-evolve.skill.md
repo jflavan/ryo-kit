@@ -63,7 +63,7 @@ Read the entire current framework to understand what exists:
 Read all `.agent.md` files in `.ryo/agents/`. For each, extract the full YAML frontmatter and note the prose body.
 
 ### Skills
-Read all `SKILL.md` files in `.ryo/skills/*/`. For each, extract the full YAML frontmatter and note the prompt body.
+Read all `SKILL.md` files in `.agents/skills/*/`. For each, extract the full YAML frontmatter and note the prompt body.
 
 ### Process
 Read `.ryo/process.md`. Extract all phases, gates, and scale rules.
@@ -132,7 +132,7 @@ Read the `.ryo/.customize/` directory. Any file here represents a user override 
 - Files in `.customize/` mirror the structure of `.ryo/`. For example:
   - `.ryo/.customize/agents/reviewer.agent.md` overrides `.ryo/agents/reviewer.agent.md`
   - `.ryo/.customize/process.md` overrides `.ryo/process.md`
-  - `.ryo/.customize/skills/deploy/SKILL.md` overrides `.ryo/skills/deploy/SKILL.md`
+  - `.ryo/.customize/skills/deploy/SKILL.md` overrides `.agents/skills/deploy/SKILL.md`
 
 ### Conflict detection:
 
