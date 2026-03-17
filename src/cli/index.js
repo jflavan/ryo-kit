@@ -6,6 +6,7 @@ import { registerAdd } from './commands/add.js';
 import { registerCheck } from './commands/check.js';
 import { registerUpdate } from './commands/update.js';
 import { registerSync } from './commands/sync.js';
+import { registerConference } from './commands/conference.js';
 
 export function run(argv) {
   const program = new Command();
@@ -21,6 +22,7 @@ export function run(argv) {
   registerCheck(program);
   registerUpdate(program);
   registerSync(program);
+  registerConference(program);
 
   program.parse(argv);
 }

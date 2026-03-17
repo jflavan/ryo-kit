@@ -97,6 +97,77 @@ describe('AgentDefSchema', () => {
     const result = AgentDefSchema.safeParse(withOptionals);
     assert.equal(result.success, true);
   });
+
+  it('accepts optional persona field with all four properties', () => {
+    const withPersona = {
+      name: 'architect',
+      role: 'solution architecture',
+      description: 'Designs system architecture.',
+      responsibilities: ['define boundaries'],
+      inputs: ['requirements'],
+      outputs: ['architecture-docs'],
+      handoff_to: ['builder'],
+      persona: {
+        displayName: 'Winston',
+        icon: '🏗️',
+        communicationStyle: 'Calm, pragmatic.',
+        identity: 'Senior architect with 20 years experience.',
+      },
+    };
+    const result = AgentDefSchema.safeParse(withPersona);
+    assert.equal(result.success, true);
+    assert.equal(result.data.persona.displayName, 'Winston');
+    assert.equal(result.data.persona.icon, '🏗️');
+    assert.equal(result.data.persona.communicationStyle, 'Calm, pragmatic.');
+    assert.equal(result.data.persona.identity, 'Senior architect with 20 years experience.');
+  });
+
+  it('still validates without persona (backward compat)', () => {
+    const noPersona = {
+      name: 'builder',
+      role: 'implementation',
+      description: 'Implements features.',
+      responsibilities: ['write code'],
+      inputs: ['spec.md'],
+      outputs: ['implementation'],
+      handoff_to: ['verifier'],
+    };
+    const result = AgentDefSchema.safeParse(noPersona);
+    assert.equal(result.success, true);
+    assert.equal(result.data.persona, undefined);
+  });
+
+  it('rejects partial persona (missing required fields)', () => {
+    const partial = {
+      name: 'builder',
+      role: 'implementation',
+      description: 'Implements features.',
+      responsibilities: ['write code'],
+      inputs: ['spec.md'],
+      outputs: ['implementation'],
+      handoff_to: ['verifier'],
+      persona: {
+        displayName: 'Bob',
+      },
+    };
+    const result = AgentDefSchema.safeParse(partial);
+    assert.equal(result.success, false);
+  });
+
+  it('rejects persona with empty object', () => {
+    const emptyPersona = {
+      name: 'builder',
+      role: 'implementation',
+      description: 'Implements features.',
+      responsibilities: ['write code'],
+      inputs: ['spec.md'],
+      outputs: ['implementation'],
+      handoff_to: ['verifier'],
+      persona: {},
+    };
+    const result = AgentDefSchema.safeParse(emptyPersona);
+    assert.equal(result.success, false);
+  });
 });
 
 describe('SkillDefSchema', () => {

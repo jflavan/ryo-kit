@@ -50,6 +50,12 @@ export const AgentDefSchema = z.object({
     type: z.enum(['human', 'automated', 'hybrid']),
     criteria: z.array(z.string()),
   }).optional(),
+  persona: z.object({
+    displayName: z.string(),
+    icon: z.string(),
+    communicationStyle: z.string(),
+    identity: z.string(),
+  }).optional(),
 });
 
 export const SkillDefSchema = z.object({

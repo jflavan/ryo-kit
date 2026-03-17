@@ -60,6 +60,7 @@ Agent and skill count, names, and responsibilities are not predetermined. They'r
 | `npx ryo-kit add skill` | Add a new skill |
 | `npx ryo-kit check` | Validate framework files against schemas |
 | `npx ryo-kit update` | Pull latest skill templates from the package |
+| `npx ryo-kit conference` | Install conference mode for multi-agent discussions |
 
 All commands support `-y` / `--yes` for non-interactive usage.
 
@@ -75,6 +76,7 @@ Installed into your AI tool by `ryo init` and `ryo gen`.
 | `/ryo-add-skill` | Create a new skill conversationally |
 | `/ryo-evolve` | Re-generate framework with updated context |
 | `/ryo-retro` | Analyze usage signals and propose improvements |
+| `/ryo-conference` | Multi-agent collaborative discussion |
 
 ## Supported Runtimes
 

@@ -210,3 +210,33 @@ npx ryo-kit update [options]
    - Prompt fragments (`templates/fragments/`)
 3. Reports what was updated
 4. Does **not** touch generated content in `.ryo/` — only the meta-skills and templates shipped with the package
+
+## ryo conference
+
+Install conference mode for multi-agent collaborative discussions.
+
+```sh
+npx ryo-kit conference [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-y, --yes` | Skip confirmation prompts |
+
+**What it does:**
+
+1. Reads `org-context.yaml` to determine configured runtimes
+2. Installs the `ryo-conference` skill template into `.agents/skills/`
+3. Runs `ryo sync` to distribute the skill to all configured runtimes
+4. Prints instructions to invoke `/ryo-conference` in your AI tool
+
+The actual conference happens in your AI tool when you invoke `/ryo-conference`. The CLI just installs the skill.
+
+**Example:**
+
+```sh
+npx ryo-kit conference
+npx ryo-kit conference --yes
+```

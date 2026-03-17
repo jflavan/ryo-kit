@@ -10,3 +10,8 @@ tools: []
 gate:
   type: "human"
   criteria: []
+# persona (optional — enables conference mode with /ryo-conference):
+#   displayName: ""
+#   icon: ""
+#   communicationStyle: ""
+#   identity: ""

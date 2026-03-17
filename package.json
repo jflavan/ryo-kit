@@ -1,6 +1,6 @@
 {
   "name": "ryo-kit",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Roll Your Own AI-driven development framework. A meta-framework that generates custom agents, skills, and processes for your org.",
   "author": "jflavan",
   "license": "MIT",
