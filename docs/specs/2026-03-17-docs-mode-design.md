@@ -1,0 +1,215 @@
+# Documentation Mode Design Spec
+
+## Overview
+
+Documentation mode is an orchestrator-driven skill that generates and maintains project documentation for brownfield codebases. It scans the codebase and existing docs, builds a documentation plan with user input, then delegates writing to the project's ryo-kit agents based on their domains of responsibility. It supports creating new docs, updating stale ones, and skipping what's already covered.
+
+## Goals
+
+- Generate useful project documentation (architecture, API, onboarding, etc.) by leveraging agent expertise
+- Support multiple audiences: onboarding, external developers, internal team, or all
+- Be aware of existing documentation — identify gaps, detect staleness, avoid duplication
+- Produce living documentation that can be refreshed as the codebase evolves
+- Output plain markdown in `docs/` that's useful to anyone, regardless of ryo-kit
+
+## Non-Goals
+
+- Replacing existing documentation tooling (JSDoc, Swagger, etc.)
+- Generating code comments or inline documentation
+- Running without prior `ryo-kit init` and `/ryo-gen` — agents are required
+- Hardcoding a fixed set of doc types — agents determine what's needed
+
+---
+
+## 1. Prerequisites
+
+The skill requires:
+- `.ryo/org-context.yaml` exists (from `ryo-kit init`)
+- `.ryo/agents/` contains at least one agent (from `/ryo-gen`)
+
+If either is missing, the skill exits with a message directing the user to run the appropriate command.
+
+---
+
+## 2. CLI Command
+
+New file: `src/cli/commands/docs.js`
+
+### Usage
+
+```
+ryo docs
+```
+
+### Behavior
+
+The CLI command installs the skill template — it does **not** generate documentation. The pattern matches `ryo conference`: CLI scaffolds, user invokes the slash command in their AI tool.
+
+1. Resolve org context (same pattern as `ryo gen`)
+2. Validate prerequisites (org context + agents exist)
+3. Install the `ryo-docs` skill template to `.agents/skills/ryo-docs/`
+4. Sync to all configured runtimes
+5. Print usage instructions:
+   ```
+   ◇ Documentation mode installed. Use /ryo-docs in your AI tool to start a session.
+   ```
+
+### Registration
+
+Added to `src/cli/index.js` via `registerDocs(program)`.
+
+### Flags
+
+- `-y, --yes` — Skip confirmation (consistent with other commands)
+- `--project-dir` — Override project directory
+- `--repo-only` — Skip runtime sync
+
+---
+
+## 3. Skill Template
+
+New file: `templates/core-skills/ryo-docs.skill.md`
+
+### Skill Frontmatter
+
+```yaml
+---
+name: ryo-docs
+description: >
+  Documentation generation and maintenance skill. Scans the codebase and existing
+  docs, builds a documentation plan with user input, then delegates writing to
+  project agents based on their domains of responsibility.
+trigger: /ryo-docs
+---
+```
+
+### Step 1: Load Context
+
+- Read `.ryo/org-context.yaml` for tech stack, team size, methodology
+- Read all `.ryo/agents/*.agent.md` to build the agent roster with roles, responsibilities, and persona data
+- Read `.ryo/.state/docs-manifest.md` if it exists (from prior runs)
+- If zero agents found: tell user to run `/ryo-gen` first and stop
+
+### Step 2: Ask the User
+
+- **Audience**: Who is this documentation for? (new team members onboarding, external developers consuming APIs, the internal team capturing knowledge, or all of the above)
+- **Priority areas** (optional): Any specific areas of concern? The user can say "you decide" and the agents will determine what's needed.
+
+### Step 3: Scan & Assess
+
+- Scan `docs/`, `README.md`, and any other markdown files in the repo
+- Analyze the codebase structure — directories, entry points, key modules, tech stack
+- For each agent, map their responsibilities to areas of the codebase
+- Cross-reference existing docs against codebase coverage
+- Identify: what's well-documented, what's missing, what's stale (using git history comparison against the docs manifest if available)
+
+### Step 4: Present the Plan
+
+Output a documentation plan as a table:
+
+| Doc | Status | Assigned Agent | Scope |
+|-----|--------|---------------|-------|
+| `docs/architecture.md` | new | Architect | High-level system design, component relationships |
+| `docs/api-reference.md` | stale | API Lead | REST endpoints, request/response contracts |
+| `docs/getting-started.md` | skip | — | Already comprehensive in README |
+
+- **new**: Does not exist, agents identified it as needed
+- **update**: Exists but stale (covered files changed since last generation)
+- **skip**: Exists and still current
+
+The user can approve, modify assignments, rename files, remove items, or add new ones before generation begins.
+
+### Step 5: Generate Docs
+
+For each approved doc (new or update):
+
+1. The orchestrator delegates to the assigned agent, providing:
+   - The agent's role and domain context
+   - The target audience
+   - The relevant area of the codebase to document
+   - Existing doc content (for updates)
+2. The doc is written from the agent's domain expertise
+3. A footer comment is appended: `<!-- Generated by ryo-docs | Agent: {agent-name} | {timestamp} -->`
+4. The user reviews the doc before the skill moves to the next one
+5. Progress is tracked in `.ryo/.state/` for session resumability
+
+### Step 6: Wrap Up
+
+- Print a summary of what was created and updated
+- Persist `.ryo/.state/docs-manifest.md` with: doc path, assigned agent, timestamp, and list of covered source files/directories
+- Suggest adding doc links to README if appropriate
+
+---
+
+## 4. Agent Assignment Logic
+
+The orchestrator assigns docs to agents based on domain matching:
+
+- Each agent's `responsibilities`, `inputs`, and `outputs` fields are compared against the documentation topic
+- Example: an agent responsible for "API design" is assigned the API reference doc; a "DevOps" agent gets deployment/infrastructure docs
+- **Cross-cutting docs** (e.g., architecture overview): the orchestrator assigns a primary author and lists contributing agents. The doc is written from the primary's perspective but incorporates knowledge from contributing agents' domains.
+- **Unowned topics**: if no agent clearly owns a topic, the orchestrator writes it directly without agent delegation
+- Assignments are shown in the plan (Step 4) and the user can reassign before generation
+
+---
+
+## 5. Staleness Detection & Refresh
+
+When `/ryo-docs` is run on a project with existing generated docs:
+
+1. Read `.ryo/.state/docs-manifest.md` to find previously generated docs and their covered source paths
+2. For each doc, compare the manifest timestamp against `git log` for the covered files
+3. If covered files have commits newer than the manifest timestamp, mark the doc as **update**
+4. If no changes detected, mark as **skip**
+5. New areas of the codebase not covered by any existing doc are proposed as **new**
+
+The user can override any status in the plan step (force regenerate a "skip", or skip a "stale").
+
+---
+
+## 6. Output Format
+
+- All docs are written to `docs/` at the project root
+- Each doc is a standalone markdown file
+- Filenames are determined by the orchestrator based on content and shown in the plan for user approval
+- Each doc includes a footer comment for manifest correlation: `<!-- Generated by ryo-docs | Agent: {agent-name} | {timestamp} -->`
+- No ryo-kit-specific formatting — docs are plain markdown usable by anyone
+- No auto-generated index file, but the wrap-up suggests linking from README
+
+---
+
+## 7. State Management
+
+| File | Purpose |
+|------|---------|
+| `.ryo/.state/docs-manifest.md` | Tracks generated docs: path, agent, timestamp, covered sources |
+| `.ryo/.state/docs-progress.md` | In-session progress tracking for resumability |
+
+Both follow the existing `.ryo/.state/` conventions used by other skills.
+
+---
+
+## 8. Testing
+
+### CLI Command Tests
+- `docsAction()` installs skill to `.agents/skills/ryo-docs/`
+- `docsAction()` syncs to detected runtimes
+- `docsAction()` fails gracefully when org context is missing
+- `docsAction()` fails gracefully when no agents exist
+
+### Validation Tests
+- Skill template file is well-formed (valid YAML frontmatter)
+- Manifest file format is parseable
+
+---
+
+## 9. Files Changed
+
+| File | Change |
+|------|--------|
+| `src/cli/commands/docs.js` | New CLI command |
+| `src/cli/index.js` | Register docs command via `registerDocs` |
+| `templates/core-skills/ryo-docs.skill.md` | New documentation skill template |
+| `docs/cli-reference.md` | Document `ryo docs` command |
+| `docs/skill-reference.md` | Document `/ryo-docs` skill |
+| `README.md` | Add docs mode to feature list |
