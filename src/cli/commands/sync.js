@@ -47,6 +47,14 @@ export async function migrateOldLayout(projectDir) {
       }
     }
   }
+
+  // 4. Remove legacy Copilot skill symlinks from .github/skills/
+  //    VS Code auto-discovers skills from .agents/skills/, so these
+  //    symlinks caused duplicate skill entries.
+  const legacyCopilotSkillsDir = join(projectDir, '.github', 'skills');
+  if (await exists(legacyCopilotSkillsDir)) {
+    await removeRyoKitSymlinks(legacyCopilotSkillsDir);
+  }
 }
 
 /**
