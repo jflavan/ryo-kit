@@ -79,12 +79,11 @@ describe('syncAction', () => {
     assert.ok(stats.isSymbolicLink());
   });
 
-  test('creates skill symlinks for copilot', async () => {
+  test('does not create skill symlinks for copilot (auto-discovers from .agents/skills/)', async () => {
     await setupProject(dir, ['copilot']);
     await syncAction({ projectDir: dir });
-    const linkPath = join(dir, '.github', 'skills', 'ryo-gen');
-    const stats = await lstat(linkPath);
-    assert.ok(stats.isSymbolicLink());
+    // .github/skills/ should not exist since copilot auto-discovers from .agents/skills/
+    await assert.rejects(() => access(join(dir, '.github', 'skills')));
   });
 
   test('creates agent symlinks for claude-code', async () => {
@@ -143,11 +142,12 @@ describe('syncAction', () => {
     await syncAction({ projectDir: dir });
     await syncAction({ projectDir: dir });
 
-    // Verify symlinks still exist and are valid
+    // Verify claude-code symlinks still exist and are valid
     const claudeSkill = join(dir, '.claude', 'skills', 'ryo-gen');
-    const copilotSkill = join(dir, '.github', 'skills', 'ryo-gen');
     assert.ok((await lstat(claudeSkill)).isSymbolicLink());
-    assert.ok((await lstat(copilotSkill)).isSymbolicLink());
+
+    // Copilot should NOT have skill symlinks (auto-discovers from .agents/skills/)
+    await assert.rejects(() => access(join(dir, '.github', 'skills')));
   });
 
   test('removes stale symlinks when canonical skill is deleted', async () => {

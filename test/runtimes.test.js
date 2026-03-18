@@ -179,8 +179,8 @@ describe('CopilotRuntime', () => {
     assert.equal(runtime.name, 'copilot');
   });
 
-  test('skillsDir points to .github/skills', () => {
-    assert.equal(runtime.skillsDir, join(dir, '.github', 'skills'));
+  test('skillsDir is null (auto-discovery)', () => {
+    assert.equal(runtime.skillsDir, null);
   });
 
   test('agentsDir points to .github/agents', () => {
@@ -195,12 +195,11 @@ describe('CopilotRuntime', () => {
     assert.equal(runtime.configFile, join(dir, '.github', 'copilot-instructions.md'));
   });
 
-  test('installSkill creates symlink to canonical dir', async () => {
+  test('installSkill is a no-op', async () => {
     const canonicalDir = await setupCanonicalSkill(dir, 'ryo-gen', SKILL_CONTENT);
+    // Should not throw, should not create any files in .github/skills/
     await runtime.installSkill('ryo-gen', canonicalDir);
-    const linkPath = join(dir, '.github', 'skills', 'ryo-gen');
-    const stats = await lstat(linkPath);
-    assert.ok(stats.isSymbolicLink());
+    await assert.rejects(() => access(join(dir, '.github', 'skills')));
   });
 
   test('installAgent creates symlink to .ryo/agents/', async () => {
@@ -228,11 +227,16 @@ describe('CopilotRuntime', () => {
     assert.ok(content.includes(RYO_BLOCK_START));
   });
 
-  test('uninstall removes ryo-kit symlinks from skills dir', async () => {
+  test('uninstall cleans up legacy .github/skills/ symlinks', async () => {
+    // Simulate a legacy symlink that was created by previous versions
     const canonicalDir = await setupCanonicalSkill(dir, 'ryo-gen', SKILL_CONTENT);
-    await runtime.installSkill('ryo-gen', canonicalDir);
+    const { createSymlink } = await import('../src/utils/symlink.js');
+    const legacyLink = join(dir, '.github', 'skills', 'ryo-gen');
+    await createSymlink(canonicalDir, legacyLink);
+    assert.ok((await lstat(legacyLink)).isSymbolicLink());
+
     await runtime.uninstall();
-    await assert.rejects(() => access(join(dir, '.github', 'skills', 'ryo-gen')));
+    await assert.rejects(() => access(legacyLink));
   });
 
   test('uninstall removes ryo block from copilot-instructions.md', async () => {

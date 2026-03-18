@@ -6,9 +6,7 @@ import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
 export class CopilotRuntime extends BaseRuntime {
   get name() { return 'copilot'; }
 
-  get skillsDir() {
-    return join(this.projectDir, '.github', 'skills');
-  }
+  get skillsDir() { return null; }
 
   get agentsDir() {
     return join(this.projectDir, '.github', 'agents');
@@ -18,9 +16,8 @@ export class CopilotRuntime extends BaseRuntime {
     return join(this.projectDir, '.github', 'copilot-instructions.md');
   }
 
-  async installSkill(skillName, canonicalSkillDir) {
-    const linkPath = join(this.skillsDir, skillName);
-    await createSymlink(canonicalSkillDir, linkPath);
+  async installSkill(_skillName, _canonicalSkillDir) {
+    // No-op — VS Code auto-discovers skills from .agents/skills/
   }
 
   async installAgent(agentName, agentMeta) {
@@ -34,7 +31,9 @@ export class CopilotRuntime extends BaseRuntime {
   }
 
   async uninstall() {
-    await removeRyoKitSymlinks(this.skillsDir);
+    // Clean up legacy .github/skills/ symlinks from previous versions
+    const legacySkillsDir = join(this.projectDir, '.github', 'skills');
+    await removeRyoKitSymlinks(legacySkillsDir);
     await removeRyoKitSymlinks(this.agentsDir);
     await removeRyoBlock(this.configFile);
   }
