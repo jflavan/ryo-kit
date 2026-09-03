@@ -177,7 +177,7 @@ From `scope-classification` signals and `Scope: upgraded` ledger lines, count ho
 
 ### Analysis J: Gates Passed Without Evidence
 
-Compare `gate-outcome | ... | passed` signals against `evidence` signals for the same gate in the same run.
+For each `gate-outcome | ... | passed` signal, look for an `evidence` signal with the same subject immediately before it, or a `Step N: complete (... evidence: ...)` line naming the gate in the run's retained ledger.
 
 **Evidence threshold:** Any gate that passed with no evidence entry is a process violation, not a tuning question.
 

@@ -37,6 +37,6 @@ export function parseConstitution(content) {
 
 export async function loadConstitution(projectDir, home) {
   const found = await findConstitution(projectDir, home);
-  if (!found) return { path: null, rules: {}, principles: '', issues: [] };
-  return { path: found.path, ...parseConstitution(found.content) };
+  if (!found) return { path: null, raw: null, rules: {}, principles: '', issues: [] };
+  return { path: found.path, raw: found.content, ...parseConstitution(found.content) };
 }

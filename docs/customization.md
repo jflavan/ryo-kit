@@ -86,5 +86,7 @@ The `.ryo/.state/` directory contains session state (plan progress, signals, ret
 - **Gitignore `.state/`** if the state is per-developer (default recommendation)
 - **Commit `.state/signals.md`** if you want team-wide retro analysis
 - **Commit `.state/history/`** if you want a shared record of framework evolution
+- **Commit `.state/audit/`** — retained workflow ledgers are the record of decisions made on the team's behalf; that is the point of keeping them
+- **Gitignore `.state/ledger.md`** — it is per-run scratch until it is archived
 
-The `.customize/` directory should always be committed — it represents deliberate team decisions.
+The `.customize/` directory should always be committed — it represents deliberate team decisions. So should `constitution.md` and `.ryo/hooks/policy.json`: the guard hook enforces whatever they say, so changes to them belong in a reviewed pull request like any other code.

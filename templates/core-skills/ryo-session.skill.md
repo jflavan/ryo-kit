@@ -36,13 +36,13 @@ If `.ryo/process.md` or `.ryo/workflows/` is missing, the framework has not been
 
 These hold for every request in this session, including questions, "quick" fixes, and follow-ups.
 
-1. **Classify before you act.** Before clarifying questions, before reading code, before any edit: name the scope (`small-change`, `bug-fix`, `feature`, `epic`, or `hotfix`), say it out loud, and confirm it with `npx ryo-kit classify <paths> --scope <proposed>` once you know the paths. The constitution's `scope_overrides` can make a one-line diff a `feature`. The ratchet is one-way: scope goes up mid-task, never down.
+1. **Classify before you act.** Before clarifying questions, before reading code, before any edit: name the scope (`small-change`, `bug-fix`, `feature`, `epic`, or `hotfix`), say it out loud, and confirm it with `npx ryo-kit classify <paths> --scope <proposed>` once you know the paths. The constitution's `scope_overrides` can make a one-line diff a `feature`. The ratchet is one-way: scope goes up mid-task, never down. A request that ends in an answer rather than a change ("what does this function do?") is classified as `none`: say so, answer it, and no workflow applies. The moment an answer turns into an edit, classify the edit.
 2. **Follow the workflow that matches.** Pick the workflow whose `trigger` fits the request. Run its steps in order, applying its scale rules for the classified scope. Do not assemble your own process from memory.
 3. **Approval before implementation, at every scope.** Present what you intend (two sentences for a small change, a sectioned design for a feature) and wait for the user's yes. The artifact scales with scope; the approval does not.
 4. **Gates pass on evidence, not assertion.** Every gate's `evidence` list names what must exist. Produce it fresh in that step, read it, and only then claim the gate passed. See the verification fragment. Record `gate-outcome` and `evidence` signals.
 5. **Separation of duties.** Where the process defines a reviewer or verifier distinct from the builder, the review is done from a fresh context with the diff and the implementer's report, never by the agent that wrote the code, and never by trusting the report over the code.
 6. **Rulings, not stalls.** When the constitution, process, and decisions do not answer a question, decide, record `Ruling: what — why — cost if wrong` in the ledger, mirror it as a `ruling` signal, and continue. Stop and ask only for: irreversible or destructive operations; security-sensitive actions; side effects outside the working branch (merge, push to a shared or protected branch, publish, deploy); a plan so broken every path is a guess; every `type: human` gate; and every entry in the constitution's `stop_conditions`.
-7. **Never touch `forbidden_paths`.** If a task requires it, stop and hand the change to the user.
+7. **Never touch `forbidden_paths` or act on `protected_branches`.** If a task requires it, stop and hand the change to the user. On Claude Code and Cursor the ryo-kit guard hook refuses these tool calls deterministically; treat a refusal as the constitution speaking, not as an obstacle to route around.
 8. **Keep the ledger.** Append a line per step, gate, ruling, and scope change to `.ryo/.state/ledger.md`. It is the recovery map after compaction and the audit record after completion.
 9. **Finish visibly.** At the end of a workflow, list every ruling under "Rulings I made", then archive the ledger to `.ryo/.state/audit/` if `audit.retain_ledgers` is true.
 
@@ -60,7 +60,8 @@ These thoughts mean stop; you are rationalizing.
 
 | Thought | Reality |
 |---------|---------|
-| "This is just a question" | Questions are requests. Classify them. A question about code is often a `small-change` in disguise. |
+| "This is just a question" | Questions are requests. Classify them, even if the classification is `none`. A question about code is often a `small-change` in disguise. |
+| "The guard blocked it, I'll do it another way" | The guard is the constitution. Report the block and hand the action to the user. |
 | "I'll look at the code first, then classify" | Classification comes before exploration. It decides how you explore. |
 | "This is too small for the workflow" | Small means the workflow's short path, chosen by the scale rules, not no workflow. |
 | "I remember the process" | You remember a version of it. Read `.ryo/process.md`. |

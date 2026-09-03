@@ -40,7 +40,7 @@ export async function initAction({ yes, projectDir }) {
   s.start('Writing org context…');
   try {
     await writeOrgContext(targetDir, context);
-    await writeConstitution(targetDir);
+    await writeConstitution(targetDir, context);
     s.stop('Org context written.');
   } catch (err) {
     s.stop('Failed to write org context.');

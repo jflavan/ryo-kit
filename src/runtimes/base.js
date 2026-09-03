@@ -15,17 +15,28 @@ export class BaseRuntime {
   async uninstall() { throw new Error('Not implemented'); }
 
   /**
-   * Register the ryo-kit SessionStart hook with this runtime.
+   * Register the ryo-kit hooks with this runtime.
    * Runtimes without a hook mechanism leave this as a no-op.
    *
-   * @param {string} hookScriptRelPath - Project-relative path to the hook script
+   * @param {{ sessionStart: string, guard: string }} hookPaths - Project-relative hook script paths
    */
-  async installHooks(_hookScriptRelPath) { /* no-op by default */ }
+  async installHooks(_hookPaths) { /* no-op by default */ }
   async uninstallHooks() { /* no-op by default */ }
 }
 
 /** Marker every ryo-kit hook command contains, used for idempotent upsert/removal. */
-export const RYO_HOOK_MARKER = '.ryo/hooks/session-start.js';
+export const RYO_HOOK_MARKER = '.ryo/hooks/';
+
+/** True when a hook entry (command string plus optional args array) was written by ryo-kit. */
+export function isRyoHookCommand(entry) {
+  const parts = [entry?.command, ...(Array.isArray(entry?.args) ? entry.args : [])];
+  return parts.some(p => typeof p === 'string' && p.includes(RYO_HOOK_MARKER));
+}
+
+/** Shell-form hook command using the project-dir placeholder the runtime exports. */
+export function hookCommand(relPath, format, placeholder) {
+  return `node "${placeholder}/${relPath.replace(/\\/g, '/')}" --format ${format}`;
+}
 
 export const RYO_BLOCK_START = '<!-- ryo-kit:start -->';
 export const RYO_BLOCK_END = '<!-- ryo-kit:end -->';

@@ -12,18 +12,18 @@ These mechanics are the same for every org. What differs per org is the policy t
 
 | Key | Enforced by | Meaning |
 |-----|-------------|---------|
-| `protected_branches` | session hook, workflows | Branches an agent never merges into or pushes to without a human. Globs. |
+| `protected_branches` | guard hook, workflows | Branches an agent never pushes to, merges into, or deletes. Globs. |
 | `required_reviewers.default` | process-generation | Approver count on review gates. |
 | `required_reviewers.paths` | process-generation | Per-path approver count and roles, e.g. two reviewers including security for `payments/**`. |
-| `forbidden_paths` | `ryo classify`, workflows | Paths agents never modify. `ryo classify` exits 2 when a touched path matches. |
-| `stop_conditions` | workflows, `ryo-session` | Situations where the executor stops and asks, beyond the built-in four. Copied verbatim into every generated workflow. |
+| `forbidden_paths` | guard hook, `ryo classify` | Paths agents never modify. The guard refuses edits and shell writes; `ryo classify` exits 2 when a touched path matches. |
+| `stop_conditions` | workflows, `ryo-session`, `ryo classify` | Situations where the executor stops and asks, beyond the built-in four. Copied verbatim into every generated workflow and printed by `ryo classify`. |
 | `scope_overrides` | `ryo classify` | Path glob to minimum scope. A one-line change under `auth/**` can be a `feature`. |
 | `evidence` | process-generation | Whether review and tests are required evidence on every gate, plus org-specific artifacts. |
 | `audit.retain_ledgers` | workflows | Keep workflow ledgers in `audit.retain_dir` after completion (default true, `.ryo/.state/audit/`). |
 
 **Prose** is policy the model enforces: the non-negotiable principles. They are embedded into every generated agent and skill, and injected into every session by the hook.
 
-`ryo check` validates the frontmatter. The default template written by `ryo init` includes a starting set: protect `main` and `release/*`, one reviewer, review and tests required as evidence, ledgers retained.
+`ryo check` validates the frontmatter. `ryo init` writes the default template tuned to the org context: protect `main` and `release/*` with one reviewer and review plus tests as required evidence; for a solo developer without required reviews, no protected branches and review optional (the guard would otherwise block every push); for compliance or large teams, two reviewers, and for compliance a `compliance-checklist` evidence artifact. Ledgers are retained in every case. Edit the file afterwards; it is the org's, and `ryo sync` recompiles the guard policy from it.
 
 ## Scope classification
 
@@ -35,7 +35,8 @@ Every workflow starts by classifying the request. Scope decides which path the s
 | `bug-fix` | Correct a known defect in an existing flow. |
 | `feature` | New behaviour, or a change to an interface others depend on. |
 | `epic` | Spans multiple areas. Decompose before planning. |
-| `hotfix` | Emergency production fix. Orthogonal to size; runs the shortest path the constitution allows. |
+| `hotfix` | Emergency production fix. Orthogonal to size; `ryo classify --hotfix` still applies size overrides, and gates marked `skippable_for: []` still apply. |
+| `none` | A question that ends in an answer, not a change. Said out loud; no workflow applies until an edit is proposed. |
 
 The executor proposes a scope out loud, then confirms it deterministically:
 
@@ -71,7 +72,9 @@ Rules `ryo check` enforces:
 - An `automated` gate cannot claim `separation_of_duties` or name approver roles.
 - The performing agent cannot appear in its own gate's `approvers.agents` when `separation_of_duties` is set.
 - A scale rule may only skip a phase or step for the scopes its gate's `skippable_for` lists. `skippable_for: []` means every scale rule must require it.
+- A workflow step gate may specialise its process phase gate but never weaken it: not a weaker `type`, not dropping `separation_of_duties` or an `evidence` item, not widening `skippable_for`, not fewer approvers.
 - Workflow steps reference real phases; scale rules reference real phases; agents hand off to real agents.
+- `.ryo/.state/ledger.md` has an identity line and only recognised entry shapes; a `Ruling:` reads "what — why — cost if wrong".
 
 Rules the generation skills apply:
 
@@ -108,17 +111,36 @@ At the end of a workflow, every ruling is listed under "Rulings I made" in the f
 
 When the workflow finishes, the ledger is moved to `.ryo/.state/audit/<date>-<workflow>.md` if `audit.retain_ledgers` is true (the default). `/ryo-retro` reads retained ledgers as signal data with full context. Set `retain_ledgers: false` to delete them instead.
 
-## The session hook
+## Hooks: injection and enforcement
 
-`ryo sync` installs `.ryo/hooks/session-start.js` and registers it with each runtime that supports session hooks:
+`ryo sync` installs two dependency-free scripts under `.ryo/hooks/` and registers them with each runtime that supports hooks. Both run with the system `node`.
 
-| Runtime | Registration |
-|---------|--------------|
-| Claude Code | `.claude/settings.json` → `hooks.SessionStart`, matcher `startup\|clear\|compact` |
-| Cursor | `.cursor/hooks.json` → `hooks.sessionStart` |
-| Copilot, Codex, Windsurf, Gemini CLI | No hook mechanism used; run `/ryo-session` at the start of a session |
+**`session-start.js`** injects governance context at the start of every session: the `ryo-session` bootstrap skill, the constitution, the process phase list, any in-flight `current-plan.md`, the tail of the ledger, and the list of workflows. On Claude Code it fires on startup, `/clear`, and `/compact`, so the rules survive context loss.
 
-The hook is dependency-free and runs with the system `node`. It injects the `ryo-session` bootstrap skill, the constitution, the process phase list, any in-flight `current-plan.md`, the tail of the ledger, and the list of workflows. Existing hook entries and settings are preserved, and repeated syncs never duplicate the entry. `ryo-session` can also be invoked manually.
+**`guard.js`** enforces the constitution at tool-call time. It reads `.ryo/hooks/policy.json`, compiled by `ryo sync` from the constitution's frontmatter, and refuses:
+
+| Action | Rule |
+|--------|------|
+| `git push` whose target (explicit refspec or current branch) matches `protected_branches` | Pushing to a protected branch is a human action |
+| `git merge` while the current branch is protected | Integration into a protected branch is a human action. Local commits are allowed so a solo developer on `main` can still work; the push is where the guard applies. |
+| `git branch -D`, `git push --delete` of a protected branch | Never delete a protected branch |
+| `gh pr merge`, `glab mr merge` when any branch is protected | Merging is a human action |
+| Edits (Claude Code `Edit`, `Write`, `MultiEdit`, `NotebookEdit`) to a path matching `forbidden_paths` | Agents do not modify these paths |
+| Shell commands that write (`>`, `rm`, `mv`, `cp`, `tee`, `sed -i`, ...) to a `forbidden_paths` match | Same rule, for the shell |
+
+A refusal returns the reason to the agent, so it reports the block and hands the action to the user rather than routing around it.
+
+| Runtime | Session injection | Enforcement |
+|---------|-------------------|-------------|
+| Claude Code | `.claude/settings.json` → `hooks.SessionStart` (`startup\|clear\|compact`) | `hooks.PreToolUse` on `Bash\|Edit\|Write\|MultiEdit\|NotebookEdit`, deny via `permissionDecision` |
+| Cursor | `.cursor/hooks.json` → `hooks.sessionStart` | `hooks.beforeShellExecution`, deny via `permission`. Cursor has no pre-edit hook, so `forbidden_paths` are enforced for shell writes only. |
+| Copilot, Codex, Windsurf, Gemini CLI | Managed block in `copilot-instructions.md` / `AGENTS.md` / `GEMINI.md` points at `/ryo-session` | None. The constitution is prose here; `ryo check` in CI is the backstop. |
+
+Registration is idempotent (ryo-kit entries are identified by the `.ryo/hooks/` path in their command), preserves existing hooks and settings, and uses `${CLAUDE_PROJECT_DIR}` on Claude Code so the hooks work whatever directory the tool runs from. `uninstall()` removes only the ryo-kit entries.
+
+**Keeping the policy current.** `policy.json` records a hash of the constitution it was compiled from. `ryo check` reports the policy as stale when the constitution has changed since; run `ryo sync` to recompile. Commit both files.
+
+**What the guard is and is not.** It is a guardrail against a forgetful or over-eager agent: the situations where an agent "just pushes" or "quickly fixes" a file it should not touch. It is not a security boundary. Anyone, including the agent, who can edit `constitution.md` and re-run `ryo sync` can change the policy, and shell commands can be obfuscated past a tokenizer. Treat changes to the constitution and the policy as code: commit them, review them in pull requests, and run `npx ryo-kit check` in CI so a stale or invalid policy fails the build.
 
 ## Feedback loop
 

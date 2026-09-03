@@ -11,6 +11,8 @@ import {
   parseSignalLine,
 } from '../../context/schema.js';
 import { parseConstitution } from '../../governance/constitution.js';
+import { parseLedger } from '../../governance/ledger.js';
+import { hashContent, resolveSource } from '../../scaffolder/hook-writer.js';
 import { readIfExists, exists } from '../../utils/fs.js';
 
 /** Directory-name prefix reserved for ryo-kit's own meta-skills. */
@@ -151,6 +153,24 @@ export async function checkFramework(ryoDir) {
     for (const message of issues) errors.push({ file: 'constitution.md', message });
   }
 
+  // --- Compiled guard policy must match the constitution it was built from ---
+  const policyContent = await readIfExists(join(ryoDir, 'hooks', 'policy.json'));
+  if (policyContent !== null) {
+    try {
+      const policy = JSON.parse(policyContent);
+      if (policy.source) {
+        const source = await readIfExists(resolveSource(policy.source, projectDir));
+        if (source === null) {
+          errors.push({ file: join('hooks', 'policy.json'), message: `source constitution not found at ${policy.source}; run \`npx ryo-kit sync\`` });
+        } else if (hashContent(source) !== policy.source_hash) {
+          errors.push({ file: join('hooks', 'policy.json'), message: 'stale: the constitution changed since the guard policy was compiled; run `npx ryo-kit sync`' });
+        }
+      }
+    } catch {
+      errors.push({ file: join('hooks', 'policy.json'), message: 'not valid JSON; run `npx ryo-kit sync` to regenerate' });
+    }
+  }
+
   // --- Validate .state/signals.md entries ---
   const signalsContent = await readIfExists(join(ryoDir, '.state', 'signals.md'));
   if (signalsContent !== null) {
@@ -165,6 +185,14 @@ export async function checkFramework(ryoDir) {
         });
       }
     });
+  }
+
+  // --- Validate .state/ledger.md shape ---
+  const ledgerContent = await readIfExists(join(ryoDir, '.state', 'ledger.md'));
+  if (ledgerContent !== null && ledgerContent.trim() !== '') {
+    for (const message of parseLedger(ledgerContent).issues) {
+      errors.push({ file: join('.state', 'ledger.md'), message });
+    }
   }
 
   // --- Cross-reference checks ---
@@ -219,7 +247,15 @@ export async function checkFramework(ryoDir) {
       if (phaseNames.size > 0 && !phaseNames.has(step.phase)) {
         errors.push({ file, message: `step ${idx + 1} references unknown process phase: "${step.phase}"` });
       }
-      if (step.gate) errors.push(...gateErrors(step.gate, file, step.agent, `step ${idx + 1} gate`));
+      if (step.gate) {
+        errors.push(...gateErrors(step.gate, file, step.agent, `step ${idx + 1} gate`));
+        const phase = processDef?.phases.find(ph => ph.name === step.phase);
+        if (phase) {
+          for (const what of gateWeakenings(phase.gate, step.gate)) {
+            errors.push({ file, message: `step ${idx + 1} weakens the process gate for phase "${step.phase}": ${what}` });
+          }
+        }
+      }
     });
 
     for (const rule of data.scale_rules ?? []) {
@@ -237,6 +273,36 @@ export async function checkFramework(ryoDir) {
   }
 
   return errors;
+}
+
+const GATE_STRENGTH = { automated: 0, hybrid: 1, human: 2 };
+
+/**
+ * A workflow step gate may specialise its process phase gate but never weaken it.
+ * Returns human-readable descriptions of each weakening found.
+ */
+export function gateWeakenings(phaseGate, stepGate) {
+  const found = [];
+  if (GATE_STRENGTH[stepGate.type] < GATE_STRENGTH[phaseGate.type]) {
+    found.push(`type ${phaseGate.type} → ${stepGate.type}`);
+  }
+  if (phaseGate.separation_of_duties && stepGate.separation_of_duties === false) {
+    found.push('drops separation_of_duties');
+  }
+  if (Array.isArray(phaseGate.skippable_for) && Array.isArray(stepGate.skippable_for)) {
+    const widened = stepGate.skippable_for.filter(sc => !phaseGate.skippable_for.includes(sc));
+    if (widened.length) found.push(`widens skippable_for with: ${widened.join(', ')}`);
+  }
+  if (Array.isArray(phaseGate.evidence) && Array.isArray(stepGate.evidence)) {
+    const dropped = phaseGate.evidence.filter(e => !stepGate.evidence.includes(e));
+    if (dropped.length) found.push(`drops evidence: ${dropped.join(', ')}`);
+  }
+  const phaseCount = phaseGate.approvers?.count;
+  const stepCount = stepGate.approvers?.count;
+  if (phaseCount !== undefined && stepCount !== undefined && stepCount < phaseCount) {
+    found.push(`reduces approvers from ${phaseCount} to ${stepCount}`);
+  }
+  return found;
 }
 
 /**

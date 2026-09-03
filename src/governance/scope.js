@@ -23,11 +23,15 @@ export function maxScope(a, b) {
  * proposed scope, and never smaller than any matching override.
  *
  * @param {{ paths?: string[], proposed?: string, constitution?: object }} input
- * @returns {{ scope: string, proposed: string|null, upgraded: boolean, reasons: Array<{path: string, minimum_scope: string, reason?: string}>, stop_conditions: string[], forbidden: string[] }}
+ * @returns {{ scope: string, hotfix: boolean, proposed: string|null, upgraded: boolean, reasons: Array<{path: string, minimum_scope: string, reason?: string}>, stop_conditions: string[], forbidden: string[] }}
  */
-export function classifyScope({ paths = [], proposed = null, constitution = {} } = {}) {
+export function classifyScope({ paths = [], proposed = null, constitution = {}, hotfix = false } = {}) {
   const overrides = constitution.scope_overrides ?? [];
   const forbiddenGlobs = constitution.forbidden_paths ?? [];
+
+  // `hotfix` is an emergency path, orthogonal to size. It may be passed as the
+  // proposed label; the size classification then starts from bug-fix.
+  if (proposed === 'hotfix') { hotfix = true; proposed = 'bug-fix'; }
 
   let scope = SCOPE_ORDER.includes(proposed) ? proposed : SCOPE_ORDER[0];
   const reasons = [];
@@ -47,6 +51,7 @@ export function classifyScope({ paths = [], proposed = null, constitution = {} }
 
   return {
     scope,
+    hotfix,
     proposed: SCOPE_ORDER.includes(proposed) ? proposed : null,
     upgraded,
     reasons,

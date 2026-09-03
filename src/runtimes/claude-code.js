@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
-import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END, RYO_HOOK_MARKER } from './base.js';
+import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END, isRyoHookCommand, hookCommand } from './base.js';
 import { ensureDir, ensureParentDir, readIfExists, exists } from '../utils/fs.js';
 import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
 import { readJsonConfig, writeJsonConfig } from '../utils/json-config.js';
@@ -40,31 +40,44 @@ export class ClaudeCodeRuntime extends BaseRuntime {
   }
 
   /**
-   * Upsert a SessionStart hook into .claude/settings.json. Existing hooks and
-   * settings are preserved; the ryo-kit entry is identified by RYO_HOOK_MARKER
-   * so repeated syncs never duplicate it.
+   * Upsert the ryo-kit hooks into .claude/settings.json:
+   *  - SessionStart (startup|clear|compact) → session-start.js injects governance context
+   *  - PreToolUse (Bash|Edit|Write|MultiEdit|NotebookEdit) → guard.js enforces
+   *    protected_branches and forbidden_paths
+   * Existing hooks and settings are preserved; ryo-kit entries are identified by
+   * the `.ryo/hooks/` marker so repeated syncs never duplicate them.
    */
-  async installHooks(hookScriptRelPath) {
+  async installHooks(hookPaths) {
     const settings = await readJsonConfig(this.settingsFile);
     settings.hooks ??= {};
-    const entries = (settings.hooks.SessionStart ??= []).filter(e => !hookEntryIsRyo(e));
-    entries.push({
+    const placeholder = '${CLAUDE_PROJECT_DIR}';
+
+    const sessionStart = (settings.hooks.SessionStart ??= []).filter(e => !entryIsRyo(e));
+    sessionStart.push({
       matcher: 'startup|clear|compact',
-      hooks: [{
-        type: 'command',
-        command: `node "${hookScriptRelPath.replace(/\\/g, '/')}" --format claude`,
-      }],
+      hooks: [{ type: 'command', command: hookCommand(hookPaths.sessionStart, 'claude', placeholder) }],
     });
-    settings.hooks.SessionStart = entries;
+    settings.hooks.SessionStart = sessionStart;
+
+    const preToolUse = (settings.hooks.PreToolUse ??= []).filter(e => !entryIsRyo(e));
+    preToolUse.push({
+      matcher: 'Bash|Edit|Write|MultiEdit|NotebookEdit',
+      hooks: [{ type: 'command', command: hookCommand(hookPaths.guard, 'claude', placeholder) }],
+    });
+    settings.hooks.PreToolUse = preToolUse;
+
     await writeJsonConfig(this.settingsFile, settings);
   }
 
   async uninstallHooks() {
     if (!await exists(this.settingsFile)) return;
     const settings = await readJsonConfig(this.settingsFile);
-    if (!settings.hooks?.SessionStart) return;
-    settings.hooks.SessionStart = settings.hooks.SessionStart.filter(e => !hookEntryIsRyo(e));
-    if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
+    if (!settings.hooks) return;
+    for (const event of ['SessionStart', 'PreToolUse']) {
+      if (!settings.hooks[event]) continue;
+      settings.hooks[event] = settings.hooks[event].filter(e => !entryIsRyo(e));
+      if (settings.hooks[event].length === 0) delete settings.hooks[event];
+    }
     if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
     await writeJsonConfig(this.settingsFile, settings);
   }
@@ -77,8 +90,8 @@ export class ClaudeCodeRuntime extends BaseRuntime {
   }
 }
 
-function hookEntryIsRyo(entry) {
-  return (entry?.hooks ?? []).some(h => typeof h?.command === 'string' && h.command.includes(RYO_HOOK_MARKER));
+function entryIsRyo(entry) {
+  return (entry?.hooks ?? []).some(isRyoHookCommand);
 }
 
 // ---- Shared helpers ----

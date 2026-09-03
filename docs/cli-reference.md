@@ -130,7 +130,8 @@ npx ryo-kit sync [options]
 3. Checks for conflicts with user-owned `.agents/` directories (uses the `.ryo-kit` marker file)
 4. Scans `.agents/skills/` for skill directories and `.ryo/agents/` for agent definitions
 5. For each runtime: removes stale symlinks and agent blocks, then installs current skills and agents
-6. Copies the SessionStart hook to `.ryo/hooks/session-start.js` and registers it with runtimes that support hooks (Claude Code: `.claude/settings.json`; Cursor: `.cursor/hooks.json`). Existing hook entries are preserved; the ryo-kit entry is never duplicated.
+6. Writes the managed `ryo-kit` block into each runtime's instructions file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursorrules`) pointing at `.ryo/` and `/ryo-session`
+7. Copies `session-start.js` and `guard.js` to `.ryo/hooks/`, compiles the constitution's `protected_branches`, `forbidden_paths`, and `stop_conditions` to `.ryo/hooks/policy.json`, and registers the hooks with runtimes that support them (Claude Code: `.claude/settings.json`; Cursor: `.cursor/hooks.json`). Existing entries are preserved; ryo-kit entries are never duplicated. Re-run `sync` after editing the constitution so the policy is recompiled.
 
 **Installation mechanisms by runtime:**
 
@@ -183,7 +184,9 @@ npx ryo-kit check [options]
    - An `automated` gate cannot claim `separation_of_duties` or name approver roles
    - The performing agent cannot appear in its own gate's `approvers.agents` under `separation_of_duties`
    - A scale rule may only skip a phase or step for the scopes its gate's `skippable_for` lists; `skippable_for: []` is never skippable
-9. Reports errors with file paths and exits 1 if any were found
+   - A workflow step gate cannot weaken its process phase gate (weaker type, dropped `separation_of_duties` or `evidence`, wider `skippable_for`, fewer approvers)
+9. Validates `.state/ledger.md` (identity line, recognised entry shapes, `Ruling:` format) and reports `.ryo/hooks/policy.json` as stale when the constitution changed since it was compiled
+10. Reports errors with file paths and exits 1 if any were found
 
 **This is purely deterministic** — no AI tool needed. Use it in CI to validate framework integrity.
 
@@ -206,7 +209,8 @@ npx ryo-kit classify [paths...] [options]
 
 | Flag | Description |
 |------|-------------|
-| `-s, --scope <scope>` | Proposed scope: `small-change`, `bug-fix`, `feature`, or `epic`. The result never downgrades it. |
+| `-s, --scope <scope>` | Proposed scope: `small-change`, `bug-fix`, `feature`, `epic`, or `hotfix`. The result never downgrades it. |
+| `--hotfix` | Emergency path. Size overrides still apply, and so do gates marked `skippable_for: []`. |
 | `--json` | Print machine-readable JSON |
 
 **What it does:**

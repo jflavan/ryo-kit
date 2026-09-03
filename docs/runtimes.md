@@ -144,17 +144,17 @@ Gemini CLI auto-discovers skills from `.agents/skills/`. Agents are installed as
 
 `GEMINI.md` also receives a reference block for general config.
 
-## Session Hooks
+## Hooks
 
-`ryo sync` copies a dependency-free hook script to `.ryo/hooks/session-start.js` and registers it with runtimes that support session hooks. The hook injects the constitution, process phases, in-flight plan, ledger tail, workflow list, and the `ryo-session` bootstrap skill at the start of every session, so governance survives `/clear` and `/compact`.
+`ryo sync` copies two dependency-free scripts to `.ryo/hooks/` (`session-start.js`, `guard.js`), compiles the constitution's enforceable rules to `.ryo/hooks/policy.json`, and registers the hooks with runtimes that support them. See [Governance](./governance.md#hooks-injection-and-enforcement) for what they do.
 
-| Runtime | Registration | Output format |
-|---------|--------------|---------------|
-| Claude Code | `.claude/settings.json` → `hooks.SessionStart` (matcher `startup\|clear\|compact`) | `hookSpecificOutput.additionalContext` |
-| Cursor | `.cursor/hooks.json` → `hooks.sessionStart` | `additional_context` |
-| Copilot, Codex, Windsurf, Gemini CLI | Not registered; invoke `/ryo-session` manually | — |
+| Runtime | Session injection | Enforcement |
+|---------|-------------------|-------------|
+| Claude Code | `.claude/settings.json` → `hooks.SessionStart` (matcher `startup\|clear\|compact`) | `hooks.PreToolUse` (matcher `Bash\|Edit\|Write\|MultiEdit\|NotebookEdit`) |
+| Cursor | `.cursor/hooks.json` → `hooks.sessionStart` | `hooks.beforeShellExecution` |
+| Copilot, Codex, Windsurf, Gemini CLI | Managed `ryo-kit` block in the instructions file points at `/ryo-session` | — |
 
-Registration is idempotent (the entry is identified by the `.ryo/hooks/session-start.js` path in its command) and preserves any existing hooks and settings. A settings file that is not valid JSON is left untouched and the error is reported. `uninstall()` removes only the ryo-kit entry.
+Commands use `${CLAUDE_PROJECT_DIR}` on Claude Code (exported to project hooks) and workspace-relative paths on Cursor. Registration is idempotent (entries are identified by the `.ryo/hooks/` path in their command) and preserves any existing hooks and settings. A settings file that is not valid JSON is left untouched and the error is reported. `uninstall()` removes only the ryo-kit entries.
 
 ## The Base Runtime Interface
 

@@ -94,6 +94,35 @@ describe('runtime hook installation', () => {
     assert.equal(cursor.version, 1);
     assert.equal(cursor.hooks.sessionStart.length, 1);
     assert.match(cursor.hooks.sessionStart[0].command, /--format cursor$/);
+    assert.equal(cursor.hooks.beforeShellExecution.length, 1);
+    assert.match(cursor.hooks.beforeShellExecution[0].command, /guard\.js" --format cursor$/);
+
+    // PreToolUse guard registered with the project-dir placeholder
+    assert.equal(settings.hooks.PreToolUse.length, 1);
+    assert.equal(settings.hooks.PreToolUse[0].matcher, 'Bash|Edit|Write|MultiEdit|NotebookEdit');
+    assert.match(settings.hooks.PreToolUse[0].hooks[0].command, /^node "\$\{CLAUDE_PROJECT_DIR\}\/\.ryo\/hooks\/guard\.js" --format claude$/);
+    assert.match(entries[1].hooks[0].command, /^node "\$\{CLAUDE_PROJECT_DIR\}\//);
+
+    // Guard script and compiled policy are in place
+    assert.ok(await exists(join(tmp, '.ryo', 'hooks', 'guard.js')));
+    const policy = JSON.parse(await readFile(join(tmp, '.ryo', 'hooks', 'policy.json'), 'utf8'));
+    assert.deepEqual(policy.protected_branches, []);
+    assert.equal(policy.source, null, 'no constitution in this fixture');
+  });
+
+  it('compiles the constitution into the guard policy', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ryo-hook-policy-'));
+    try {
+      await mkdir(join(dir, '.ryo'), { recursive: true });
+      await writeFile(join(dir, '.ryo', 'constitution.md'), '---\nprotected_branches: [main, "release/*"]\nforbidden_paths: ["infra/prod/**"]\nstop_conditions: [x]\n---\n# C\n');
+      const policy = await installHooksForRuntimes(dir, [], { home: dir });
+      assert.deepEqual(policy.protected_branches, ['main', 'release/*']);
+      assert.deepEqual(policy.forbidden_paths, ['infra/prod/**']);
+      assert.equal(policy.source, '.ryo/constitution.md', 'project-relative, so the file is portable across machines');
+      assert.match(policy.source_hash, /^[0-9a-f]{64}$/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('uninstall removes only the ryo-kit hook entries', async () => {
@@ -102,6 +131,7 @@ describe('runtime hook installation', () => {
     const settings = JSON.parse(await readFile(join(tmp, '.claude', 'settings.json'), 'utf8'));
     assert.equal(settings.hooks.SessionStart.length, 1);
     assert.equal(settings.hooks.SessionStart[0].hooks[0].command, 'echo other');
+    assert.equal(settings.hooks.PreToolUse, undefined);
     const cursor = JSON.parse(await readFile(join(tmp, '.cursor', 'hooks.json'), 'utf8'));
     assert.equal(cursor.hooks.sessionStart, undefined);
   });
@@ -111,7 +141,7 @@ describe('runtime hook installation', () => {
     try {
       await mkdir(join(dir, '.claude'), { recursive: true });
       await writeFile(join(dir, '.claude', 'settings.json'), '{ not json');
-      await assert.rejects(() => new ClaudeCodeRuntime(dir).installHooks('.ryo/hooks/session-start.js'));
+      await assert.rejects(() => new ClaudeCodeRuntime(dir).installHooks({ sessionStart: '.ryo/hooks/session-start.js', guard: '.ryo/hooks/guard.js' }));
       assert.equal(await readFile(join(dir, '.claude', 'settings.json'), 'utf8'), '{ not json');
     } finally {
       await rm(dir, { recursive: true, force: true });

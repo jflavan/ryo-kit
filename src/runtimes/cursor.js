@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { BaseRuntime, RYO_HOOK_MARKER } from './base.js';
+import { BaseRuntime, isRyoHookCommand, hookCommand } from './base.js';
 import { upsertRyoBlock, removeRyoBlock } from './claude-code.js';
 import { upsertAgentBlock, removeAgentBlock } from '../utils/agent-block.js';
 import { readJsonConfig, writeJsonConfig } from '../utils/json-config.js';
@@ -36,23 +36,36 @@ export class CursorRuntime extends BaseRuntime {
     return join(this.projectDir, '.cursor', 'hooks.json');
   }
 
-  /** Upsert a sessionStart hook into .cursor/hooks.json, preserving other hooks. */
-  async installHooks(hookScriptRelPath) {
+  /**
+   * Upsert the ryo-kit hooks into .cursor/hooks.json:
+   *  - sessionStart → session-start.js
+   *  - beforeShellExecution → guard.js (protected branches; Cursor has no
+   *    pre-edit hook, so forbidden_paths are enforced for shell writes only)
+   * Cursor runs hook commands from the workspace root, so paths are relative.
+   */
+  async installHooks(hookPaths) {
     const config = await readJsonConfig(this.hooksFile);
     config.version ??= 1;
     config.hooks ??= {};
-    const entries = (config.hooks.sessionStart ??= []).filter(e => !isRyoHook(e));
-    entries.push({ command: `node "${hookScriptRelPath.replace(/\\/g, '/')}" --format cursor` });
-    config.hooks.sessionStart = entries;
+    const upsert = (event, relPath) => {
+      const entries = (config.hooks[event] ??= []).filter(e => !isRyoHookCommand(e));
+      entries.push({ command: hookCommand(relPath, 'cursor', '.') });
+      config.hooks[event] = entries;
+    };
+    upsert('sessionStart', hookPaths.sessionStart);
+    upsert('beforeShellExecution', hookPaths.guard);
     await writeJsonConfig(this.hooksFile, config);
   }
 
   async uninstallHooks() {
     if (!await exists(this.hooksFile)) return;
     const config = await readJsonConfig(this.hooksFile);
-    if (!config.hooks?.sessionStart) return;
-    config.hooks.sessionStart = config.hooks.sessionStart.filter(e => !isRyoHook(e));
-    if (config.hooks.sessionStart.length === 0) delete config.hooks.sessionStart;
+    if (!config.hooks) return;
+    for (const event of ['sessionStart', 'beforeShellExecution']) {
+      if (!config.hooks[event]) continue;
+      config.hooks[event] = config.hooks[event].filter(e => !isRyoHookCommand(e));
+      if (config.hooks[event].length === 0) delete config.hooks[event];
+    }
     await writeJsonConfig(this.hooksFile, config);
   }
 
@@ -63,6 +76,3 @@ export class CursorRuntime extends BaseRuntime {
   }
 }
 
-function isRyoHook(entry) {
-  return typeof entry?.command === 'string' && entry.command.includes(RYO_HOOK_MARKER);
-}

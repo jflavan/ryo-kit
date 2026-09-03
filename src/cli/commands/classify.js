@@ -15,10 +15,11 @@ export function registerClassify(program) {
   program
     .command('classify [paths...]')
     .description('Classify the scope of a change from the paths it touches, using constitution scope rules')
-    .option('-s, --scope <scope>', `proposed scope (${SCOPE_ORDER.join(', ')}); the result never downgrades it`)
+    .option('-s, --scope <scope>', `proposed scope (${SCOPE_ORDER.join(', ')}, or hotfix); the result never downgrades it`)
+    .option('--hotfix', 'emergency path: shortest allowed route, but gates marked skippable_for: [] still apply')
     .option('--json', 'print machine-readable JSON')
     .action(async (paths, options) => {
-      const result = await classifyAction({ projectDir: process.cwd(), paths, proposed: options.scope ?? null });
+      const result = await classifyAction({ projectDir: process.cwd(), paths, proposed: options.scope ?? null, hotfix: !!options.hotfix });
       if (options.json) {
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
       } else {
@@ -28,9 +29,9 @@ export function registerClassify(program) {
     });
 }
 
-export async function classifyAction({ projectDir, paths = [], proposed = null, home } = {}) {
+export async function classifyAction({ projectDir, paths = [], proposed = null, hotfix = false, home } = {}) {
   const constitution = await loadConstitution(projectDir, home);
-  const result = classifyScope({ paths, proposed, constitution: constitution.rules });
+  const result = classifyScope({ paths, proposed, hotfix, constitution: constitution.rules });
   return { ...result, constitution: constitution.path, constitution_issues: constitution.issues };
 }
 
@@ -38,7 +39,10 @@ function printClassification(result) {
   const header = result.upgraded
     ? `Scope: ${result.scope} (upgraded from ${result.proposed})`
     : `Scope: ${result.scope}`;
-  p.log.info(header);
+  p.log.info(result.hotfix ? `${header} — hotfix path` : header);
+  if (result.hotfix) {
+    p.log.warn('Hotfix: take the shortest path the scale rules allow. Gates marked skippable_for: [] (compliance, protected-branch review) still apply.');
+  }
   for (const r of result.reasons) {
     p.log.step(`${r.path} → minimum ${r.minimum_scope}${r.reason ? ` — ${r.reason}` : ''}`);
   }

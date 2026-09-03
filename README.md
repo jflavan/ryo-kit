@@ -114,7 +114,7 @@ A process nobody enforces is a suggestion. ryo-kit builds enforcement into what 
 - **Gates that pass on evidence.** Every gate names the artifacts that must exist, freshly produced, before it passes. `skippable_for: []` marks gates no scope may skip; compliance gates always are.
 - **Separation of duties.** Review is done by a different agent than implementation, from a fresh context, on the diff. `ryo check` rejects a performer approving its own gate.
 - **Rulings, not stalls.** Ambiguities the policy does not answer are decided, recorded in `.ryo/.state/ledger.md` as `Ruling: what — why — cost if wrong`, and surfaced at the end. The executor stops only for destructive or irreversible actions, security-sensitive actions, side effects beyond the branch, human gates, and the constitution's own stop conditions.
-- **A session hook.** `ryo sync` installs a SessionStart hook for Claude Code and Cursor that injects the constitution, process, in-flight plan, and ledger on startup, `/clear`, and `/compact`. Other runtimes run `/ryo-session`.
+- **Hooks that inject and enforce.** `ryo sync` installs a SessionStart hook for Claude Code and Cursor that injects the constitution, process, in-flight plan, and ledger on startup, `/clear`, and `/compact`, and a guard hook that refuses pushes to protected branches, merges, and edits to forbidden paths at tool-call time. Other runtimes get a managed block in their instructions file pointing at `/ryo-session`.
 
 See [Governance](docs/governance.md).
 
