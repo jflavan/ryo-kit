@@ -91,8 +91,11 @@ Categorize changes into:
 - Agents whose responsibilities should change (e.g., compliance requirements added, so reviewer gains compliance duties).
 - Skills whose inputs/outputs or prompt body should change.
 - Process phases whose gates should change (e.g., gate type changes from automated to hybrid).
+- Gates affected by constitution frontmatter changes: `evidence.review` / `evidence.tests` / `evidence.additional` change every review or test gate's `evidence` list; `required_reviewers` changes `approvers` on review gates; new `stop_conditions` are copied into every workflow's Stop Conditions section; new `scope_overrides` may change which scale-rule path a workflow documents.
 - Workflow steps that need reordering or updated skill references.
 - Scale rules that need adjustment.
+
+After applying changes, `npx ryo-kit evolve` (the CLI) re-syncs, which recompiles `.ryo/hooks/policy.json` from the constitution. If the user edited the constitution by hand without running the CLI, tell them to run `npx ryo-kit sync` so the guard enforces the new rules; `npx ryo-kit check` will report the policy as stale until they do.
 
 ### Removals
 - Agents that are no longer justified by the org context (e.g., compliance-auditor when compliance requirements are removed).

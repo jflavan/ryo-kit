@@ -12,6 +12,8 @@ Conversation memory does not survive context compaction or a new session. Execut
 
 Append one line per event. Never rewrite earlier lines.
 
+Before starting a step that will commit, record its base: `git rev-parse --short HEAD`. The completion line's range is `<base>..<head>` (exclusive of the base, so it lists exactly the step's commits). `npx ryo-kit trace` expands these ranges to map every commit on the branch to the step that produced it, so a range that is wrong or missing shows up as an untraced commit.
+
 ```
 Step <N>: complete (commits <base7>..<head7>, gate <name> passed — evidence: <what>)
 Step <N>: gate <name> failed — <finding one-liners> — fix round <R>/<max>

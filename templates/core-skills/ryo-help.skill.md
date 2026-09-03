@@ -90,11 +90,14 @@ The user may ask for help in several ways. Match their intent and respond accord
 If the user asks a general "what next" question:
 
 1. Check if there's an in-flight plan (Step 2). If so, recommend resuming it.
-2. Check `.ryo/.state/signals.md` for recent activity. If it's been a while since the last retro, suggest `/ryo-retro`.
-3. Otherwise, describe the typical workflow for their next task:
-   - Which agent role handles it
-   - Which skill to invoke
-   - Which process phase they'd be entering
+2. Check `.ryo/.state/ledger.md`. If it exists, a workflow run is in flight: report its workflow, scope, and last completed step, and recommend resuming from the next step rather than starting anything new.
+3. Check `.ryo/.state/signals.md` for recent activity. If it's been a while since the last retro, suggest `/ryo-retro`.
+4. Otherwise, describe the typical workflow for their next task, starting with classification:
+   - The scope to propose and the command to confirm it: `npx ryo-kit classify <paths> --scope <proposed>`
+   - Which workflow in `.ryo/workflows/` matches, and which steps its scale rules skip for that scope
+   - Which agent role handles the first step and which skill to invoke
+   - Which gates lie ahead and what evidence each needs
+5. Before a pull request or merge, suggest `npx ryo-kit check` (schemas, cross-references, gate governance, policy freshness) and `npx ryo-kit trace` (every commit mapped to the step and gate that produced it).
 
 ### "How do I [specific task]?"
 
@@ -116,7 +119,8 @@ If the user asks about agent or skill selection:
 
 If the user reports a problem:
 
-1. Check if the issue is a missing file or broken reference. Suggest running `npx ryo-kit check` for a full validation.
+1. Check if the issue is a missing file or broken reference. Suggest running `npx ryo-kit check` for a full validation. If `check` reports `hooks/policy.json` as stale, the constitution changed since the guard policy was compiled: run `npx ryo-kit sync`.
+   If the guard hook refused an action (a push to a protected branch, an edit to a forbidden path), that is the constitution speaking: explain the rule, and hand the action to the user rather than looking for another route.
 2. If agents or skills seem wrong for their org, suggest running `/ryo-retro` to analyze usage patterns and propose improvements.
 3. If the framework feels outdated relative to org changes, suggest running `/ryo-evolve` to regenerate from updated context.
 
