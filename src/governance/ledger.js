@@ -6,7 +6,7 @@
  * line into a known entry type and reports the ones it cannot classify.
  */
 
-const IDENTITY_RE = /^#\s*Ledger\s*[—-]+\s*workflow:\s*([^\s—-]+)(?:.*?scope:\s*([a-z-]+))?/i;
+const IDENTITY_RE = /^#\s*Ledger\s*[—-]+\s*workflow:\s*(\S+)(?:.*?scope:\s*([a-z-]+))?/i;
 
 const ENTRY_PATTERNS = [
   { type: 'step-complete', re: /^Step\s+(\d+):\s*complete\b(.*)$/i },

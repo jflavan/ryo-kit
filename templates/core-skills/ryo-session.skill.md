@@ -19,7 +19,7 @@ You are working in a repository governed by ryo-kit. This skill runs before your
 
 ## Step 1: Load the Governing Documents
 
-Read, in this order, and stop to report if any required one is missing:
+If this text arrived through the ryo-kit SessionStart hook, the constitution, process phase list, in-flight plan, and ledger tail are already included below it; use them and read the files only when you need the detail. Otherwise read, in this order, and stop to report if any required one is missing:
 
 1. `constitution.md` — `.ryo/constitution.md` first, then `~/.ryo/constitution.md`. Its frontmatter is policy the tooling enforces (`protected_branches`, `forbidden_paths`, `stop_conditions`, `scope_overrides`, `evidence`, `audit`). Its prose is policy you enforce.
 2. `.ryo/process.md` — the phases and their gates. Note which gates are `type: human`, which have `skippable_for: []`, and which carry `separation_of_duties`.

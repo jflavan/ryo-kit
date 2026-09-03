@@ -34,7 +34,7 @@ Answer the interview questions about your org. Then open your AI tool and run:
 /ryo-gen
 ```
 
-The skill chain reads your org context and generates a complete framework into `.ryo/`. Skills are written to `.agents/skills/` and synced to each configured runtime.
+The skill chain reads your org context and generates a complete framework into `.ryo/`. Skills are written to `.agents/skills/` and synced to each configured runtime. Then start a new session: the ryo-kit hook loads the constitution and process, and every request is classified before work begins.
 
 ## What Gets Generated
 
@@ -60,6 +60,7 @@ Agent and skill count, names, and responsibilities are not predetermined. They'r
 | `npx ryo-kit add skill` | Add a new skill |
 | `npx ryo-kit check` | Validate framework files against schemas, cross-references, and governance rules |
 | `npx ryo-kit classify <paths>` | Classify the scope of a change from the paths it touches, per the constitution |
+| `npx ryo-kit trace` | Trace branch commits to the workflow steps and gate evidence that produced them |
 | `npx ryo-kit update` | Pull latest skill templates from the package |
 | `npx ryo-kit conference` | Install conference mode for multi-agent discussions |
 | `npx ryo-kit docs` | Install documentation mode for agent-driven doc generation |
@@ -114,6 +115,7 @@ A process nobody enforces is a suggestion. ryo-kit builds enforcement into what 
 - **Gates that pass on evidence.** Every gate names the artifacts that must exist, freshly produced, before it passes. `skippable_for: []` marks gates no scope may skip; compliance gates always are.
 - **Separation of duties.** Review is done by a different agent than implementation, from a fresh context, on the diff. `ryo check` rejects a performer approving its own gate.
 - **Rulings, not stalls.** Ambiguities the policy does not answer are decided, recorded in `.ryo/.state/ledger.md` as `Ruling: what — why — cost if wrong`, and surfaced at the end. The executor stops only for destructive or irreversible actions, security-sensitive actions, side effects beyond the branch, human gates, and the constitution's own stop conditions.
+- **Traceability you can check.** `npx ryo-kit trace` maps every commit on the branch to the ledger step and gate that produced it, and flags commits no step accounts for and gates passed without evidence. Deterministic, so it runs in CI.
 - **Hooks that inject and enforce.** `ryo sync` installs a SessionStart hook for Claude Code and Cursor that injects the constitution, process, in-flight plan, and ledger on startup, `/clear`, and `/compact`, and a guard hook that refuses pushes to protected branches, merges, and edits to forbidden paths at tool-call time. Other runtimes get a managed block in their instructions file pointing at `/ryo-session`.
 
 See [Governance](docs/governance.md).

@@ -12,6 +12,7 @@ import { registerSync } from './commands/sync.js';
 import { registerConference } from './commands/conference.js';
 import { registerDocs } from './commands/docs.js';
 import { registerClassify } from './commands/classify.js';
+import { registerTrace } from './commands/trace.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -40,6 +41,7 @@ export function run(argv) {
   registerConference(program);
   registerDocs(program);
   registerClassify(program);
+  registerTrace(program);
 
   program.parse(argv);
 }

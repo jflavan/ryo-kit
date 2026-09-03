@@ -57,6 +57,9 @@ Key modules:
 | `src/governance/constitution.js` | Locates and parses `constitution.md` (frontmatter rules + prose) |
 | `src/governance/scope.js` | Deterministic scope classification with the ratchet rule |
 | `src/cli/commands/classify.js` | `ryo classify` |
+| `src/governance/ledger.js` | Parses `.ryo/.state/ledger.md` entries and rulings |
+| `src/governance/trace.js`, `src/cli/commands/trace.js` | `ryo trace`: maps branch commits to ledger steps and gate evidence |
+| `templates/hooks/guard.js` | Dependency-free PreToolUse / beforeShellExecution guard for protected branches and forbidden paths |
 | `src/scaffolder/hook-writer.js` | Installs the SessionStart hook script and registers it per runtime |
 | `templates/hooks/session-start.js` | Dependency-free hook that injects governance context into a session |
 
@@ -197,7 +200,8 @@ The `ryo sync` command reads skills from `.agents/skills/` and agents from `.ryo
 The generated framework is only as good as its enforcement. Four mechanisms, described in [Governance](./governance.md), make it hold:
 
 1. **Policy input** — `constitution.md` frontmatter (`ConstitutionSchema`) and `org-context.yaml` drive what the generation skills write into gates, workflows, and skills.
-2. **Deterministic checks** — `ryo check` validates gate governance (separation of duties, unskippable gates, approver rules) and cross-references; `ryo classify` applies scope policy to paths. Both run with zero LLM involvement and are usable from CI.
+2. **Deterministic checks** — `ryo check` validates gate governance (separation of duties, unskippable gates, approver rules, non-weakened step gates) and cross-references; `ryo classify` applies scope policy to paths; `ryo trace` maps commits to ledger steps and evidence. All run with zero LLM involvement and are usable from CI.
+2a. **Enforcement** — the guard hook refuses pushes to and merges into protected branches, deletions of them, forge-CLI merges, and edits to forbidden paths at tool-call time on Claude Code and Cursor, from a policy compiled from the constitution.
 3. **Session injection** — the SessionStart hook re-injects constitution, process, plan, and ledger on startup, `/clear`, and `/compact`, and carries the `ryo-session` bootstrap rules.
 4. **Recorded decisions** — the ledger and `ruling` / `evidence` / `scope-classification` signals feed `/ryo-retro`, which turns recurring rulings into proposed policy.
 

@@ -10,7 +10,7 @@ import {
   parseFrontmatter,
   parseSignalLine,
 } from '../../context/schema.js';
-import { parseConstitution } from '../../governance/constitution.js';
+import { parseConstitution, findConstitution } from '../../governance/constitution.js';
 import { parseLedger } from '../../governance/ledger.js';
 import { hashContent, resolveSource } from '../../scaffolder/hook-writer.js';
 import { readIfExists, exists } from '../../utils/fs.js';
@@ -74,7 +74,7 @@ function schemaErrors(result, file) {
  * @param {string} ryoDir - Absolute path to the .ryo/ directory.
  * @returns {Promise<Array<{ file: string, message: string }>>}
  */
-export async function checkFramework(ryoDir) {
+export async function checkFramework(ryoDir, { home } = {}) {
   const errors = [];
   const projectDir = dirname(ryoDir);
 
@@ -146,11 +146,12 @@ export async function checkFramework(ryoDir) {
   }
   const phaseNames = new Set(processDef?.phases.map(ph => ph.name) ?? []);
 
-  // --- Validate constitution.md frontmatter (repo-local only) ---
-  const constitutionContent = await readIfExists(join(ryoDir, 'constitution.md'));
-  if (constitutionContent !== null) {
-    const { issues } = parseConstitution(constitutionContent);
-    for (const message of issues) errors.push({ file: 'constitution.md', message });
+  // --- Validate constitution.md frontmatter (repo-local, else org-wide) ---
+  const constitution = await findConstitution(projectDir, home);
+  if (constitution) {
+    const { issues } = parseConstitution(constitution.content);
+    const label = constitution.path.startsWith(ryoDir) ? 'constitution.md' : constitution.path;
+    for (const message of issues) errors.push({ file: label, message });
   }
 
   // --- Compiled guard policy must match the constitution it was built from ---
@@ -159,7 +160,7 @@ export async function checkFramework(ryoDir) {
     try {
       const policy = JSON.parse(policyContent);
       if (policy.source) {
-        const source = await readIfExists(resolveSource(policy.source, projectDir));
+        const source = await readIfExists(resolveSource(policy.source, projectDir, home));
         if (source === null) {
           errors.push({ file: join('hooks', 'policy.json'), message: `source constitution not found at ${policy.source}; run \`npx ryo-kit sync\`` });
         } else if (hashContent(source) !== policy.source_hash) {

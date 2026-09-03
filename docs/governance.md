@@ -111,6 +111,10 @@ At the end of a workflow, every ruling is listed under "Rulings I made" in the f
 
 When the workflow finishes, the ledger is moved to `.ryo/.state/audit/<date>-<workflow>.md` if `audit.retain_ledgers` is true (the default). `/ryo-retro` reads retained ledgers as signal data with full context. Set `retain_ledgers: false` to delete them instead.
 
+## Traceability
+
+The constitution's default prose says every change must be traceable to a requirement or decision. `npx ryo-kit trace` makes that checkable. It lists the commits on the branch since the integration base, parses the ledger's `Step N: complete (commits a..b, gate X passed — evidence: ...)` lines, and reports which workflow step and gate produced each commit. Commits no step accounts for are `NOT TRACED`; steps that passed a gate without recorded evidence, or that name commits the repository does not have, are issues. `--strict` turns both into a non-zero exit for CI. Retained audit ledgers are included, so a branch that spans several workflow runs still traces end to end.
+
 ## Hooks: injection and enforcement
 
 `ryo sync` installs two dependency-free scripts under `.ryo/hooks/` and registers them with each runtime that supports hooks. Both run with the system `node`.

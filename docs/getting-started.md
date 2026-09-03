@@ -66,9 +66,11 @@ The generator skill chain:
 5. **Generates a process definition** — phases, gates, and artifacts for your methodology
 6. **Generates workflows** — concrete sequences for common scenarios (new feature, bug fix, hotfix)
 7. **Validates** internal consistency
-8. **Syncs** skills and agents to your configured runtimes via `npx ryo-kit sync`
+8. **Syncs** skills, agents, and hooks to your configured runtimes via `npx ryo-kit sync`
 
 Everything is written to `.ryo/` immediately as each phase completes. If your session ends mid-generation, the next `/ryo-gen` invocation resumes from where it left off.
+
+Sync also installs two hooks for Claude Code and Cursor: a session hook that loads the constitution, process, and in-flight state at the start of every session (including after `/clear` and `/compact`), and a guard that refuses pushes to protected branches, merges into them, and edits to forbidden paths. Other runtimes get a managed block in their instructions file telling the tool to run `/ryo-session` first.
 
 ## Step 4: Use your framework
 
@@ -77,6 +79,22 @@ Your generated framework is now in `.ryo/`. Depending on your org profile, you m
 - **A solo developer** — 2 agents (builder + verifier), a handful of skills, a lightweight process
 - **A small scrum team** — 3-4 agents, ~6 skills, sprint-oriented process with review gates
 - **An enterprise SAFe org with compliance** — 6-8 agents, 10+ skills, PI ceremonies, compliance gates, audit trails
+
+Start a new session so the hook fires (or run `/ryo-session`). From here, every request follows the same shape:
+
+1. **Classify.** The tool names the scope (`small-change`, `bug-fix`, `feature`, `epic`, `hotfix`, or `none` for a pure question) and confirms it with `npx ryo-kit classify <paths> --scope <proposed>`. Your constitution's `scope_overrides` can force a larger scope for sensitive paths.
+2. **Follow the workflow** in `.ryo/workflows/` that matches, taking the path the scale rules allow for that scope. Approval of the approach comes before implementation at every scope.
+3. **Pass gates on evidence.** Each gate names what must exist before it passes; the tool produces it fresh and records `gate-outcome` and `evidence` signals.
+4. **Record rulings.** Ambiguities the policy does not answer are decided and written to `.ryo/.state/ledger.md`, then listed at the end under "Rulings I made".
+
+Check the result any time, deterministically:
+
+```sh
+npx ryo-kit check          # schemas, cross-references, gate governance, policy freshness
+npx ryo-kit trace          # every commit on the branch → the step and gate that produced it
+```
+
+Both are safe to run in CI (`ryo trace --strict` fails on untraced commits). See [Governance](./governance.md) for the full model.
 
 Use `/ryo-help` at any time for context-aware guidance on what to do next.
 
@@ -108,5 +126,6 @@ After a sprint or milestone, run `/ryo-retro` to analyze usage signals and get i
 - [CLI Reference](./cli-reference.md) — all commands and flags
 - [Skill Reference](./skill-reference.md) — all slash commands and what they do
 - [Runtimes](./runtimes.md) — how skills get installed into each AI tool
+- [Governance](./governance.md) — constitution, scope classification, gates, ledger, hooks, traceability
 - [Customization](./customization.md) — overriding generated content
 - [Self-Improvement](./self-improvement.md) — the retro + evolve cycle

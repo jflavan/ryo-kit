@@ -228,6 +228,32 @@ npx ryo-kit classify src/auth/login.ts --scope bug-fix
 # src/auth/login.ts → minimum feature — auth changes always get design review
 ```
 
+## ryo trace
+
+Trace the commits on the current branch to the workflow steps and gate evidence that produced them, using the in-flight ledger (`.ryo/.state/ledger.md`) and retained audit ledgers (`.ryo/.state/audit/*.md`). Deterministic; git plus markdown parsing.
+
+```sh
+npx ryo-kit trace [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-b, --base <ref>` | Integration base. Default: the first `protected_branches` entry that exists locally, else `main`, else `master`. |
+| `--json` | Print machine-readable JSON |
+| `--strict` | Exit 1 when any commit is not covered by a completed step, a gate passed without evidence, or a ledger names commits that do not exist |
+
+**What it does:**
+
+1. Lists commits in `<base>..HEAD`
+2. Parses every `Step N: complete (commits a..b, gate X passed — evidence: ...)` line in the ledgers and expands the commit ranges with git
+3. Reports each commit with the workflow, step, and gate that produced it, or `NOT TRACED`
+4. Reports steps that passed a gate without recorded evidence, steps that name no commits, and commit ranges not found in the repository
+5. Lists every ruling recorded in the ledgers
+
+Use `--strict` in CI on pull requests to make "every change is traceable to a decision" a check rather than a principle.
+
 ## ryo update
 
 Pull the latest skill templates from the installed ryo-kit package.

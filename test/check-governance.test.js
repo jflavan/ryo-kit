@@ -174,6 +174,19 @@ describe('checkFramework governance rules', () => {
   });
 });
 
+describe('org-wide constitution validation', () => {
+  it('validates ~/.ryo/constitution.md when the repo has none', async () => {
+    const tmp = await mkdtemp(join(tmpdir(), 'ryo-check-orgwide-'));
+    try {
+      await mkdir(join(tmp, 'project', '.ryo'), { recursive: true });
+      await mkdir(join(tmp, 'home', '.ryo'), { recursive: true });
+      await writeFile(join(tmp, 'home', '.ryo', 'constitution.md'), '---\nprotected_branches: main\n---\n# C\n');
+      const errors = await checkFramework(join(tmp, 'project', '.ryo'), { home: join(tmp, 'home') });
+      assert.ok(errors.some(e => e.file.endsWith(join('.ryo', 'constitution.md')) && /protected_branches/.test(e.message)), JSON.stringify(errors));
+    } finally { await rm(tmp, { recursive: true, force: true }); }
+  });
+});
+
 describe('gateErrors', () => {
   it('rejects automated gates that claim separation of duties or approver roles', () => {
     const errs = gateErrors({ type: 'automated', criteria: [], separation_of_duties: true, approvers: { count: 1, roles: ['security'] } }, 'f', 'builder', 'g');
