@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-03
+
+Governance release. The generated framework now carries the mechanics that make a process hold, expressed in ryo-kit's own terms and driven by the org's own policy.
+
+### Added
+
+- **Structured constitution** — `constitution.md` gains YAML frontmatter with machine-checkable rules: `protected_branches`, `required_reviewers`, `forbidden_paths`, `stop_conditions`, `scope_overrides`, `evidence`, `audit`. Validated by `ryo check` via the new `ConstitutionSchema`. The default template ships sensible defaults.
+- **`ryo classify`** — deterministic scope classification from touched paths. Applies `scope_overrides` (path glob → minimum scope) and `forbidden_paths`; the result never downgrades the proposed scope. `--json` for tooling; exit code 2 when a forbidden path is touched.
+- **Governance-grade gates** — shared `GateSchema` used by agents, process phases, and workflow steps adds `evidence`, `approvers` (count, roles, agents), `skippable_for`, `separation_of_duties`, and `record_to`. All optional; existing frameworks keep validating.
+- **SessionStart hook** — `ryo sync` installs a dependency-free `.ryo/hooks/session-start.js` and registers it with Claude Code (`.claude/settings.json`) and Cursor (`.cursor/hooks.json`). It injects the constitution, process phases, in-flight plan, ledger tail, workflow list, and the `ryo-session` bootstrap skill on startup, `/clear`, and `/compact`. Idempotent; preserves existing hooks and settings.
+- **`/ryo-session`** core skill — the session bootstrap: classify before acting, follow the matching workflow, approval before implementation at every scope, gates pass on evidence, separation of duties, rulings not stalls, never touch forbidden paths, keep the ledger.
+- **Fragments** — `scope-classification.md` (classify first, one-way ratchet, red flags), `ledger.md` (`.ryo/.state/ledger.md` format, rulings, stop conditions, audit retention), `verification.md` (evidence before claims, gate function, rationalization table).
+- **Signal types** — `ruling`, `scope-classification`, `evidence`. `parseSignalLine` parses `signals.md` entries.
+- **`/ryo-retro` analyses** — H: recurring rulings that should become policy; I: scope upgrades that should become `scope_overrides`; J: gates passed without evidence. Reads retained ledgers from `.ryo/.state/audit/`.
+- **Generation templates** — workflows open with scope classification, embed ledger, evidence, stop-condition, finishing, and rationalization sections, and enforce separation of duties between implement and review steps. Process compliance gates are `skippable_for: []`. `plan`/`implement`/`test`/`review` skills get structural requirements: plan header with Global Constraints and no placeholders, four-status implementer report contract, fresh-context reviewer with two verdicts, capped fix loop with adjudication.
+- **`ryo check` rules** — workflow steps must reference real process phases; `handoff_to` must reference real agents; process phase agents must exist; scale rules may only skip phases/steps their gate's `skippable_for` allows; automated gates cannot claim separation of duties or approver roles; a performer cannot approve its own gate; constitution frontmatter and `signals.md` entries are validated.
+- `docs/governance.md` and an enterprise constitution fixture.
+
+### Fixed
+
+- `ryo check` read skills from the pre-0.2.0 `.ryo/skills/` path, so the skill cross-reference check never ran. It now reads `.agents/skills/` (and the legacy path).
+- `ryo check` parsed `process.md` but never used it; phase cross-references are now checked.
+- `/ryo-gen` had two "Phase 6" sections and its plan template omitted the sync step. Phases are now 1–7 with sync tracked for resume.
+- `ryo --version` reported a hard-coded `0.1.0`; it now reads `package.json`.
+
 ## [0.2.3] - 2026-03-18
 
 ### Fixed

@@ -23,8 +23,15 @@ During normal workflow execution, generated skills write lightweight entries to 
 | `agent-skip` | When an agent is bypassed during a workflow |
 | `skill-skip` | When a skill is not used in a step |
 | `manual-override` | When a user manually overrides a framework decision |
+| `ruling` | A decision the executor made on the user's behalf because policy did not answer the question (what, why, cost if wrong) |
+| `scope-classification` | The scope assigned at workflow start, and any mid-flight upgrade |
+| `evidence` | Verification evidence produced before a gate passed or a completion was claimed |
 
 No special instrumentation is needed. The generated workflow definitions include signal-logging instructions. Skills append entries during execution.
+
+## The Ledger and Audit Trail
+
+Alongside signals, every workflow run keeps `.ryo/.state/ledger.md`: one line per step completion, gate outcome, fix round, scope change, and `Ruling:`. When the run finishes the ledger is moved to `.ryo/.state/audit/<date>-<workflow>.md` (unless the constitution sets `audit.retain_ledgers: false`). Retained ledgers give the retro full context for each ruling and each upgrade. See [Governance](./governance.md).
 
 ## Retrospectives (`/ryo-retro`)
 
@@ -42,6 +49,9 @@ The skill:
    - Gates that always block (criteria too strict — slowing work without adding value)
    - Phases that get skipped via scale rules every time (may not be needed)
    - Missing capabilities (gaps in agent/skill coverage)
+   - Recurring rulings (the same ambiguity decided three or more times means a policy is missing)
+   - Scope upgrades (paths that keep forcing a larger scope should become `scope_overrides`)
+   - Gates that passed without evidence (a process violation, reported prominently)
 5. **Produces a retro report** at `.ryo/.state/retro-[date].md`
 6. **Presents proposals** one at a time, asking which to accept or reject
 

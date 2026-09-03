@@ -130,6 +130,7 @@ npx ryo-kit sync [options]
 3. Checks for conflicts with user-owned `.agents/` directories (uses the `.ryo-kit` marker file)
 4. Scans `.agents/skills/` for skill directories and `.ryo/agents/` for agent definitions
 5. For each runtime: removes stale symlinks and agent blocks, then installs current skills and agents
+6. Copies the SessionStart hook to `.ryo/hooks/session-start.js` and registers it with runtimes that support hooks (Claude Code: `.claude/settings.json`; Cursor: `.cursor/hooks.json`). Existing hook entries are preserved; the ryo-kit entry is never duplicated.
 
 **Installation mechanisms by runtime:**
 
@@ -168,14 +169,21 @@ npx ryo-kit check [options]
 **What it does:**
 
 1. Reads all `.agent.md` files from `agents/` — validates YAML frontmatter against AgentDefSchema
-2. Reads all `SKILL.md` files from `skills/*/` — validates against SkillDefSchema
+2. Reads all `SKILL.md` files from `.agents/skills/*/` (and the legacy `.ryo/skills/`) — validates against SkillDefSchema
 3. Reads all `.workflow.md` files from `workflows/` — validates against WorkflowDefSchema
 4. Reads `process.md` if it exists — validates against ProcessDefSchema
-5. Cross-reference checks:
-   - Agents referenced in workflow steps must exist in `agents/`
-   - Skills referenced in workflow steps must exist in `skills/`
-   - Process phases referenced in workflow steps must exist in `process.md`
-6. Reports errors with file paths
+5. Reads `constitution.md` frontmatter if present — validates against ConstitutionSchema
+6. Reads `.state/signals.md` — validates every entry line against SignalSchema
+7. Cross-reference checks:
+   - Agents referenced in workflow steps and process phases must exist in `agents/`
+   - `handoff_to` targets must exist in `agents/`
+   - Skills referenced in workflow steps must exist in `.agents/skills/`
+   - Process phases referenced in workflow steps and scale rules must exist in `process.md`
+8. Governance rules on every gate:
+   - An `automated` gate cannot claim `separation_of_duties` or name approver roles
+   - The performing agent cannot appear in its own gate's `approvers.agents` under `separation_of_duties`
+   - A scale rule may only skip a phase or step for the scopes its gate's `skippable_for` lists; `skippable_for: []` is never skippable
+9. Reports errors with file paths and exits 1 if any were found
 
 **This is purely deterministic** — no AI tool needed. Use it in CI to validate framework integrity.
 
@@ -184,6 +192,36 @@ npx ryo-kit check [options]
 ```sh
 npx ryo-kit check
 npx ryo-kit check --dir ./my-project/.ryo
+```
+
+## ryo classify
+
+Classify the scope of a change from the paths it touches, applying the constitution's `scope_overrides` and `forbidden_paths`. Deterministic; generated workflows call it as their first step.
+
+```sh
+npx ryo-kit classify [paths...] [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-s, --scope <scope>` | Proposed scope: `small-change`, `bug-fix`, `feature`, or `epic`. The result never downgrades it. |
+| `--json` | Print machine-readable JSON |
+
+**What it does:**
+
+1. Loads `constitution.md` from `.ryo/` or `~/.ryo/`
+2. For each path, applies every matching `scope_overrides` rule; the result is the largest of the proposed scope and all matching minimums
+3. Reports paths that match `forbidden_paths` and exits 2 if any do
+4. Prints the constitution's `stop_conditions` so the executor has them in view
+
+**Example:**
+
+```sh
+npx ryo-kit classify src/auth/login.ts --scope bug-fix
+# Scope: feature (upgraded from bug-fix)
+# src/auth/login.ts → minimum feature — auth changes always get design review
 ```
 
 ## ryo update

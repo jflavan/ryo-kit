@@ -31,6 +31,8 @@ Before generating the process, read and understand all of the following:
 
 5. **Decision-tree heuristics** — Use the decision-tree fragment for methodology-to-phase mapping defaults.
 
+6. **Constitution** — Read `constitution.md` (from `.ryo/` or `~/.ryo/`). Its frontmatter `evidence`, `required_reviewers`, and `stop_conditions` shape the gates; its prose principles must hold in every phase.
+
 ---
 
 ## Methodology-to-Phase Mapping
@@ -92,7 +94,7 @@ If the `compliance` array in org-context.yaml is non-empty, inject compliance-re
 - **FedRAMP:** Add a security authorization review phase.
 - **Internal:** Add a gate matching whatever internal compliance policies are described in the constitution.
 
-Compliance gates should use `type: "human"` or `type: "hybrid"` — never `type: "automated"` alone, since compliance decisions require human judgment.
+Compliance gates should use `type: "human"` or `type: "hybrid"` — never `type: "automated"` alone, since compliance decisions require human judgment. They also carry `skippable_for: []` (no scope, including hotfix, may skip them), `separation_of_duties: true`, and an `evidence` list naming the artifact that proves the check ran (e.g. `compliance-checklist`, `phi-handling-review`). Where the constitution's `required_reviewers.paths` names roles for a path, put those roles in the gate's `approvers.roles`.
 
 ---
 
@@ -117,6 +119,13 @@ phases:
       type: [human | automated | hybrid]
       criteria:
         - [criterion that must pass to exit this phase]
+      evidence:
+        - [artifact that must exist, freshly produced, before the gate passes]
+      skippable_for: [scope labels that may skip this phase; [] = never; omit to defer to scale rules]
+      separation_of_duties: [true for review, verification, and compliance gates when the org has more than one agent]
+      approvers:                    # optional
+        count: 1
+        roles: [team roles allowed to approve]
   - name: [next-phase-name]
     ...
 scale_rules:
@@ -181,6 +190,10 @@ Scale rules determine which phases to skip based on the scope of work. Design th
 
 Every scale rule must have a `required_phases` array that is never empty. Even the most minimal path must include at least implementation and one verification step.
 
+A phase whose gate has `skippable_for` may only appear in `skip_phases` for the scopes it lists. A phase with `skippable_for: []` appears in every scale rule's `required_phases`. `ryo check` enforces both.
+
+Scope labels are fixed: `small-change`, `bug-fix`, `feature`, `epic`, and the orthogonal `hotfix`. Classification happens at the start of every workflow via the **scope-classification** fragment, and the constitution's `scope_overrides` can force a minimum scope by path — design the scale rules knowing that a "small" diff in a protected area will run the larger path.
+
 ---
 
 ## Writing Instructions
@@ -189,10 +202,12 @@ Every scale rule must have a `required_phases` array that is never empty. Even t
 2. **Validate agent references.** Every agent name in the `agents` arrays must correspond to an actual agent file in `.ryo/agents/`. If an agent doesn't exist, do not reference it.
 3. **Validate phase-to-skill mapping is plausible.** For each phase, at least one skill in `.agents/skills/` should be relevant to the phase's purpose. You don't need to list skills in the process definition (that's the workflow's job), but verify the mapping makes sense.
 4. **Gate types should match org conventions:**
-   - If `conventions.reviews` is "required": review gates should be `type: "human"` or `type: "hybrid"`
-   - If `conventions.testing` is "tdd": testing gates should include test-first criteria
-   - If compliance requirements exist: compliance gates must be `type: "human"` or `type: "hybrid"`
-5. **Report what you created.** After writing, summarize: "Created process definition with N phases: [phase1], [phase2], ... and M scale rules."
+   - If `conventions.reviews` is "required": review gates should be `type: "human"` or `type: "hybrid"`, with `separation_of_duties: true`
+   - If `conventions.testing` is "tdd": testing gates should include test-first criteria and `evidence: [test-results]`
+   - If compliance requirements exist: compliance gates must be `type: "human"` or `type: "hybrid"`, `skippable_for: []`
+   - If the constitution's `evidence.review` or `evidence.tests` is `required`: every review or testing gate lists the corresponding evidence artifact
+5. **Every gate names its evidence.** No gate passes on assertion; see the **verification** fragment.
+6. **Report what you created.** After writing, summarize: "Created process definition with N phases: [phase1], [phase2], ... and M scale rules."
 
 ---
 

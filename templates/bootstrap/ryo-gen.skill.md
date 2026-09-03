@@ -11,6 +11,8 @@ trigger: /ryo-gen
 
 You are the orchestrator for ryo-kit's framework generation pipeline. Your job is to read organizational context, clarify gaps with the user, then chain through four generation sub-skills to produce a complete, tailored AI-driven development framework.
 
+**Announce at start:** "Using /ryo-gen to generate the framework from org context."
+
 ---
 
 ## Phase 0: Load State and Check for Resume
@@ -19,7 +21,7 @@ Before doing anything else, check for an in-flight plan.
 
 1. Read the file `.ryo/.state/current-plan.md`.
    - If the file exists and contains unchecked phases (lines with `- [ ]`), you are **resuming** a previous session. Tell the user: "Found an in-flight plan. Resuming from the first incomplete phase." Skip to the first unchecked phase.
-   - If the file exists and all phases are checked (`- [x]`), this is a completed plan. Archive it (see Phase 6) and start fresh.
+   - If the file exists and all phases are checked (`- [x]`), this is a completed plan. Archive it (see Phase 7) and start fresh.
    - If the file does not exist or is empty, start fresh from Phase 1.
 
 2. Read `.ryo/.state/decisions.md` if it exists. These are answers from a prior clarification session. Do not re-ask questions that already have answers recorded there.
@@ -54,7 +56,7 @@ Specifically:
    - `~/.ryo/constitution.md` (org-wide)
    - If neither exists, proceed without it but note that no constitution was found.
 
-4. Read `constitution.md` if found. This contains non-negotiable principles that all generated artifacts must respect.
+4. Read `constitution.md` if found. Its YAML frontmatter holds machine-checkable rules (`protected_branches`, `required_reviewers`, `forbidden_paths`, `stop_conditions`, `scope_overrides`, `evidence`, `audit`); its prose holds the non-negotiable principles. Every generated artifact must respect both. If the frontmatter is missing, tell the user the default template now includes one and offer to add it (`npx ryo-kit update` refreshes the default).
 
 5. Summarize the org profile to the user in 3-5 sentences. Example: "You're a small scrum team using TypeScript and Angular on Azure, with SOC 2 compliance requirements. Your team uses Claude Code and Copilot, GitHub for SCM, and Jira for PM. You follow trunk-based branching with required code reviews."
 
@@ -134,7 +136,8 @@ Constitution: [path to constitution.md used, or "none"]
 - [ ] Phase 3: Process Generation
 - [ ] Phase 4: Workflow Generation
 - [ ] Phase 5: Validation
-- [ ] Phase 6: Archive
+- [ ] Phase 6: Sync to Coding Tools
+- [ ] Phase 7: Archive
 ```
 
 ---
@@ -209,6 +212,10 @@ Specifically, verify:
 4. Agent `handoff_to` references form a valid directed acyclic graph (no cycles).
 5. Every agent has at least one skill that references it (via the skill's `agent` field) OR is used in at least one workflow step.
 6. Constitution principles are not violated by any generated artifact.
+7. Gate governance holds: no automated gate claims separation of duties, no performer approves its own work, no scale rule skips a phase or step whose gate forbids it, and every compliance gate is `skippable_for: []`.
+8. Every workflow body contains its classification, ledger, evidence, stop-condition, finishing, and rationalization sections, filled in.
+
+Then run `npx ryo-kit check` and treat every error it reports as an issue to fix.
 
 If validation finds issues:
 - List each issue with the specific file path and field that caused it.
@@ -219,32 +226,27 @@ After validation passes, update current-plan.md: check off "Phase 5: Validation"
 
 ---
 
-## Phase 6: Install and Archive
-
-### Install generated skills into the active runtime(s)
-
-Read the `tools.ai` field from org-context.yaml to determine which runtimes to target. For each runtime, the generated skills in `.agents/skills/` need to be accessible as slash commands or rules. Tell the user:
-
-"Generation complete. To install the generated skills into your AI tool(s), run: `npx ryo-kit gen`"
-
-### Archive the plan
-
-1. Copy `.ryo/.state/current-plan.md` to `.ryo/.state/history/[date]-ryo-gen.md` (use the current date in YYYY-MM-DD format).
-2. Clear or delete `.ryo/.state/current-plan.md` so the next invocation starts fresh.
-
-After completion, update current-plan.md: check off "Phase 6: Archive" (before archiving it).
-
----
-
 ## Phase 6: Sync to Coding Tools
 
-After all agents, skills, processes, and workflows are generated, run the sync command to link them to your coding tools:
+After all agents, skills, processes, and workflows are generated and validated, run the sync command to link them to the coding tools listed in `tools.ai`:
 
 ```
 npx ryo-kit sync
 ```
 
-This creates symlinks and configuration so all your coding tools (Claude Code, Copilot, Cursor, etc.) can discover the generated agents and skills natively.
+This creates symlinks and configuration so each tool discovers the generated agents and skills natively, and installs the ryo-kit SessionStart hook so the constitution, process, and in-flight state are injected into every new session (including after `/clear` and `/compact`).
+
+After completion, update current-plan.md: check off "Phase 6: Sync to Coding Tools".
+
+---
+
+## Phase 7: Archive
+
+1. Check off "Phase 7: Archive" in `.ryo/.state/current-plan.md`.
+2. Copy `.ryo/.state/current-plan.md` to `.ryo/.state/history/[date]-ryo-gen.md` (use the current date in YYYY-MM-DD format).
+3. Clear or delete `.ryo/.state/current-plan.md` so the next invocation starts fresh.
+
+Tell the user: "Generation complete. Start a new session (or run `/ryo-session`) to load the governance context, then start work with the workflow that matches your task — classification comes first."
 
 ---
 
@@ -268,3 +270,16 @@ This creates symlinks and configuration so all your coding tools (Claude Code, C
 5. **Respect the constitution.** Every generated artifact must be consistent with the principles in constitution.md.
 6. **Be runtime-agnostic.** The generated agents, skills, processes, and workflows are abstract definitions. They work across all AI runtimes. Do not embed runtime-specific instructions in the generated artifacts.
 7. **Reference the decision-tree fragment** when making choices about agent count, skill selection, process phases, or scale rules. The heuristics there are your starting point, not hard constraints.
+8. **Reference the scope-classification, ledger, and verification fragments** when generating workflows and skills. Every generated workflow classifies first, keeps a ledger, and passes gates on evidence.
+
+---
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "The org context is clear, skip clarification" | Clarification catches the mismatch between defaults and reality. Ask the three always-ask questions. |
+| "I'll write all the agents, then all the skills, then save" | A session can end at any moment. Write each file as it is designed. |
+| "Validation is a formality after careful generation" | Validation catches what careful generation missed. Run it and run `npx ryo-kit check`. |
+| "The user can add the governance sections later" | Workflows without classification, ledger, and evidence are not governed. Generate them complete. |
+| "The constitution is just a template" | The default template is a policy. If it is wrong for this org, change it with the user, do not ignore it. |

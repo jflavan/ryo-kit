@@ -1,7 +1,9 @@
 # Superpowers vs. ryo-kit: a governance review
 
 **Date:** 2026-09-03
-**Status:** Proposal
+**Status:** Direction chosen and first tranche shipped in 0.3.0. See "Decision and outcome" below; sections 6.2 and 9 describe the path we did *not* take.
+
+**Decision and outcome (2026-09-03).** Rather than detecting superpowers and generating overlays for it (6.2), ryo-kit borrows the mechanisms and makes them its own, driven by the org's policy: a structured constitution (6.1), `ryo classify` with path-based scope overrides and the one-way ratchet (6.3), governance-grade gates with `ryo check` enforcement (6.6), a ledger with rulings and audit retention plus new signal types feeding `/ryo-retro` (6.5, expressed natively rather than by importing SDD ledgers), a SessionStart hook and `/ryo-session` bootstrap (6.4, session-start half; 6.8's plugin packaging deferred), rationalization tables and structural requirements for the generated `plan`/`implement`/`review` skills (6.9), and the housekeeping fixes in section 5. Still open: the PreToolUse enforcement hook and `ryo check --gates` (6.4), `ryo trace` (6.7), plugin packaging (6.8), and a behaviour-probe harness for the templates (6.9).
 **Inputs reviewed:** ryo-kit `main` at 0.2.3; [obra/superpowers](https://github.com/obra/superpowers) at v6.3.0 (2026-08-12), with a close read of `using-superpowers`, `brainstorming`, `writing-plans`, `subagent-driven-development` (SDD) and its three prompt templates, `requesting-code-review`, `verification-before-completion`, `finishing-a-development-branch`, and the SessionStart hook.
 
 ---

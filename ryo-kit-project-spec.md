@@ -1,5 +1,7 @@
 # ryo-kit — Roll Your Own AI-Driven Development Framework
 
+> **Status note (2026-09):** this is the original design spec, kept for history. Several layout details are superseded: skills live in `.agents/skills/` (not `.ryo/skills/`), Copilot uses `.github/agents/` rather than prompt files, Windsurf uses `.windsurf/rules/`, and 0.3.0 added the governance layer (structured constitution, `ryo classify`, gate governance, ledger, session hook). The `docs/` directory is authoritative; see especially `docs/architecture.md` and `docs/governance.md`.
+
 ## Project Overview
 
 ryo-kit is a FOSS meta-framework that generates custom, organization-specific/project-specific AI-driven development frameworks. Unlike BMAD, Spec-Kit, or GSD which ship with fixed agent roles and prescribed workflows, ryo-kit ingests organizational context and generates the agents, skills, processes, and workflows that fit the actual org, team, and project.

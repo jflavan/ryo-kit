@@ -1,8 +1,9 @@
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
-import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END } from './base.js';
+import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END, RYO_HOOK_MARKER } from './base.js';
 import { ensureDir, ensureParentDir, readIfExists, exists } from '../utils/fs.js';
 import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
+import { readJsonConfig, writeJsonConfig } from '../utils/json-config.js';
 
 export class ClaudeCodeRuntime extends BaseRuntime {
   get name() { return 'claude-code'; }
@@ -34,11 +35,50 @@ export class ClaudeCodeRuntime extends BaseRuntime {
     await upsertRyoBlock(this.configFile, contextRef);
   }
 
+  get settingsFile() {
+    return join(this.projectDir, '.claude', 'settings.json');
+  }
+
+  /**
+   * Upsert a SessionStart hook into .claude/settings.json. Existing hooks and
+   * settings are preserved; the ryo-kit entry is identified by RYO_HOOK_MARKER
+   * so repeated syncs never duplicate it.
+   */
+  async installHooks(hookScriptRelPath) {
+    const settings = await readJsonConfig(this.settingsFile);
+    settings.hooks ??= {};
+    const entries = (settings.hooks.SessionStart ??= []).filter(e => !hookEntryIsRyo(e));
+    entries.push({
+      matcher: 'startup|clear|compact',
+      hooks: [{
+        type: 'command',
+        command: `node "${hookScriptRelPath.replace(/\\/g, '/')}" --format claude`,
+      }],
+    });
+    settings.hooks.SessionStart = entries;
+    await writeJsonConfig(this.settingsFile, settings);
+  }
+
+  async uninstallHooks() {
+    if (!await exists(this.settingsFile)) return;
+    const settings = await readJsonConfig(this.settingsFile);
+    if (!settings.hooks?.SessionStart) return;
+    settings.hooks.SessionStart = settings.hooks.SessionStart.filter(e => !hookEntryIsRyo(e));
+    if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
+    if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+    await writeJsonConfig(this.settingsFile, settings);
+  }
+
   async uninstall() {
     await removeRyoKitSymlinks(this.skillsDir);
     await removeRyoKitSymlinks(this.agentsDir);
     await removeRyoBlock(this.configFile);
+    await this.uninstallHooks();
   }
+}
+
+function hookEntryIsRyo(entry) {
+  return (entry?.hooks ?? []).some(h => typeof h?.command === 'string' && h.command.includes(RYO_HOOK_MARKER));
 }
 
 // ---- Shared helpers ----

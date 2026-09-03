@@ -54,6 +54,11 @@ Key modules:
 | `src/utils/agent-block.js` | Managed agent blocks in Markdown config files |
 | `src/utils/toml-agent.js` | TOML agent file generation for Codex |
 | `src/cli/prompts/org-interview.js` | TUI interview flow |
+| `src/governance/constitution.js` | Locates and parses `constitution.md` (frontmatter rules + prose) |
+| `src/governance/scope.js` | Deterministic scope classification with the ratchet rule |
+| `src/cli/commands/classify.js` | `ryo classify` |
+| `src/scaffolder/hook-writer.js` | Installs the SessionStart hook script and registers it per runtime |
+| `templates/hooks/session-start.js` | Dependency-free hook that injects governance context into a session |
 
 ## Phase 2: Skill Chain (AI-Powered)
 
@@ -131,7 +136,9 @@ The `.ryo/.state/` directory enables resume across sessions:
 |------|---------|
 | `current-plan.md` | Active plan with checkbox progress. Skills update checkboxes as phases complete. |
 | `decisions.md` | Clarification answers. If a session ends mid-interview, the next invocation picks up where it left off. |
-| `signals.md` | Append-only usage tracking. Gate outcomes, skipped phases, manual overrides. |
+| `signals.md` | Append-only usage tracking. Gate outcomes, evidence, scope classifications, rulings, skipped phases, manual overrides. |
+| `ledger.md` | The in-flight workflow run: step completions, gate outcomes, fix rounds, scope changes, rulings. Recovery map after compaction. |
+| `audit/` | Retained ledgers of completed workflow runs (when `audit.retain_ledgers` is true). |
 | `retro-[date].md` | Retrospective reports with proposed changes. |
 | `docs-manifest.md` | Tracks generated documentation: paths, assigned agents, timestamps, covered source files. Used by `/ryo-docs` for staleness detection. |
 | `docs-progress.md` | In-session progress for `/ryo-docs`. Enables resume if a documentation session is interrupted. |
@@ -171,15 +178,28 @@ Every skill reads `.state/` on startup: resume if in-flight, start fresh if not.
 │   ├── current-plan.md
 │   ├── decisions.md
 │   ├── signals.md
+│   ├── ledger.md
+│   ├── audit/
 │   ├── retro-[date].md
 │   ├── docs-manifest.md     # /ryo-docs: generated doc tracking
 │   ├── docs-progress.md     # /ryo-docs: in-session resume state
 │   └── history/
+├── hooks/
+│   └── session-start.js     # SessionStart hook, installed by ryo sync
 └── .customize/               # User overrides, preserved on evolve
     └── README.md
 ```
 
 The `ryo sync` command reads skills from `.agents/skills/` and agents from `.ryo/agents/`, then creates symlinks (or copies) into each configured runtime's native directory. Runtimes like Cursor, Codex, and Gemini CLI auto-discover skills from `.agents/skills/` and need no symlinks.
+
+## Governance Layer
+
+The generated framework is only as good as its enforcement. Four mechanisms, described in [Governance](./governance.md), make it hold:
+
+1. **Policy input** — `constitution.md` frontmatter (`ConstitutionSchema`) and `org-context.yaml` drive what the generation skills write into gates, workflows, and skills.
+2. **Deterministic checks** — `ryo check` validates gate governance (separation of duties, unskippable gates, approver rules) and cross-references; `ryo classify` applies scope policy to paths. Both run with zero LLM involvement and are usable from CI.
+3. **Session injection** — the SessionStart hook re-injects constitution, process, plan, and ledger on startup, `/clear`, and `/compact`, and carries the `ryo-session` bootstrap rules.
+4. **Recorded decisions** — the ledger and `ruling` / `evidence` / `scope-classification` signals feed `/ryo-retro`, which turns recurring rulings into proposed policy.
 
 ## Schemas
 
@@ -190,6 +210,8 @@ All artifact types have Zod schemas in `src/context/schema.js`:
 - **SkillDefSchema** — skill definitions (name, description, trigger, agent, inputs, outputs, runtimes)
 - **ProcessDefSchema** — process definition (phases with gates and artifacts, scale rules)
 - **WorkflowDefSchema** — workflow definitions (steps with phase, agent, skills, inputs, outputs, gate, scale rules)
+- **GateSchema** — shared gate object (type, criteria, evidence, approvers, skippable_for, separation_of_duties)
+- **ConstitutionSchema** — machine-checkable constitution rules (protected branches, reviewers, forbidden paths, stop conditions, scope overrides, evidence, audit)
 - **SignalSchema** — usage tracking entries (timestamp, type, subject, outcome, context)
 
 Generated files use YAML frontmatter matching these schemas, followed by markdown content.

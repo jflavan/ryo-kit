@@ -4,6 +4,7 @@ import { readdir, rename, unlink, rm, writeFile, mkdir } from 'node:fs/promises'
 import { exists } from '../../utils/fs.js';
 import { readYaml } from '../../utils/yaml.js';
 import { getRuntimeForName } from '../../scaffolder/skill-writer.js';
+import { installHooksForRuntimes } from '../../scaffolder/hook-writer.js';
 import { parseFrontmatter } from '../../context/schema.js';
 import { removeRyoKitSymlinks } from '../../utils/symlink.js';
 import { removeAgentBlock } from '../../utils/agent-block.js';
@@ -147,6 +148,12 @@ export async function syncAction({ projectDir, force } = {}) {
       await runtime.installAgent(agent.name, agent.meta);
     }
   }
+
+  // 6. Install the SessionStart hook so governance context survives /clear and /compact
+  await installHooksForRuntimes(
+    projectDir,
+    runtimeNames.map(name => getRuntimeForName(name, projectDir)),
+  );
 }
 
 /**
