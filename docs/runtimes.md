@@ -144,6 +144,18 @@ Gemini CLI auto-discovers skills from `.agents/skills/`. Agents are installed as
 
 `GEMINI.md` also receives a reference block for general config.
 
+## Hooks
+
+`ryo sync` copies two dependency-free scripts to `.ryo/hooks/` (`session-start.js`, `guard.js`), compiles the constitution's enforceable rules to `.ryo/hooks/policy.json`, and registers the hooks with runtimes that support them. See [Governance](./governance.md#hooks-injection-and-enforcement) for what they do.
+
+| Runtime | Session injection | Enforcement |
+|---------|-------------------|-------------|
+| Claude Code | `.claude/settings.json` → `hooks.SessionStart` (matcher `startup\|clear\|compact`) | `hooks.PreToolUse` (matcher `Bash\|Edit\|Write\|MultiEdit\|NotebookEdit`) |
+| Cursor | `.cursor/hooks.json` → `hooks.sessionStart` | `hooks.beforeShellExecution` |
+| Copilot, Codex, Windsurf, Gemini CLI | Managed `ryo-kit` block in the instructions file points at `/ryo-session` | — |
+
+Commands use `${CLAUDE_PROJECT_DIR}` on Claude Code (exported to project hooks) and workspace-relative paths on Cursor. Registration is idempotent (entries are identified by the `.ryo/hooks/` path in their command) and preserves any existing hooks and settings. A settings file that is not valid JSON is left untouched and the error is reported. `uninstall()` removes only the ryo-kit entries.
+
 ## The Base Runtime Interface
 
 All runtimes extend `BaseRuntime` in `src/runtimes/base.js`:

@@ -112,6 +112,12 @@ gate:
   type: [human | automated | hybrid]
   criteria:
     - [criterion that must pass before handoff]
+  evidence:
+    - [artifact this agent must produce, freshly, before handing off — e.g. test-results, review-report]
+  separation_of_duties: [true for reviewer, tester, verifier, and compliance agents: they never approve work they performed]
+  approvers:                    # optional — for human/hybrid gates
+    count: 1
+    roles: [team roles allowed to approve]
 persona:
   displayName: [A distinct first name that fits the agent's character — e.g., "Winston", "Maya", "Kai"]
   icon: [A unique emoji reflecting the role — e.g., "🏗️", "🔧", "🔍"]
@@ -150,7 +156,14 @@ interacts with other agents. Write as if explaining to a human team member.]
 ## Handoff Protocol
 
 [Describe what must be true before this agent hands off to the next agent.
-Reference the gate criteria from the frontmatter.]
+Reference the gate criteria from the frontmatter, and name the evidence the agent must show before handing off.]
+
+## Rulings and Stops
+
+[State that this agent decides ambiguities within its responsibilities and records each as a
+`Ruling:` in `.ryo/.state/ledger.md`, and list the situations where it must stop and ask:
+the constitution's stop_conditions, any `type: human` gate, and anything irreversible,
+security-sensitive, or with side effects outside the working branch.]
 ```
 
 ---

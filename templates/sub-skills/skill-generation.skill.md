@@ -32,6 +32,8 @@ Before generating any skills, read and understand all of the following:
 
 4. **Decisions** — Read `.ryo/.state/decisions.md` for project-specific constraints and user preferences.
 
+5. **Fragments** — Read the **scope-classification**, **ledger**, and **verification** fragments. The `plan`, `implement`, `test`, and `review` skills embed their rules (see Structural Requirements below).
+
 ---
 
 ## Skill Design Principles
@@ -136,6 +138,40 @@ Below the frontmatter, write the actual skill prompt. This is the content that r
 
 [What to do if inputs are missing or steps fail.]
 ```
+
+---
+
+## Structural Requirements for the Core Skills
+
+Every org gets `plan`, `implement`, `test`, and `review`. These four carry the governance mechanics, so their prompts must contain the following, adapted to the org's stack and conventions.
+
+### `plan`
+- Opens with scope classification per the **scope-classification** fragment, and stops for the user's approval of the approach before any plan is written.
+- Produces a plan file (`.ryo/.state/plans/YYYY-MM-DD-<topic>.md`) with a header: **Goal** (one sentence), **Approach** (2-3 sentences), **Spec or requirement** (path or ticket — the plan argues from it, so it travels with it), and **Global Constraints**: the constitution's frontmatter rules and prose principles that bind this work, copied verbatim, plus any stack-specific constraints from org context.
+- Breaks work into tasks sized to a review gate: each task is the smallest unit with its own test cycle that a reviewer could reject while approving its neighbour. Each task lists exact files to create or modify, the interfaces it consumes from earlier tasks and produces for later ones, the tests to write first (when `conventions.testing` is tdd), the command to run, and the commit.
+- Forbids placeholders: no "TBD", "add error handling", "similar to task N", or "write tests for the above" without the test. Every step shows how, not just what.
+- Ends with a self-review against the spec: every requirement maps to a task, names and signatures agree across tasks, no placeholders remain.
+
+### `implement`
+- Reads one task from the plan, not the whole plan, plus the Global Constraints.
+- Announces the task, asks any blocking questions before starting, follows the org's testing convention (red-green when tdd), runs the focused tests while iterating and the full suite once before committing.
+- Reports with one of four statuses: `DONE`, `DONE_WITH_CONCERNS` (done, with doubts listed), `NEEDS_CONTEXT` (a question that blocks), `BLOCKED` (cannot complete; says why). The report goes to a file the reviewer will read; the chat gets only status, commits, a one-line test summary, and concerns.
+- Never claims completion without the evidence in the **verification** fragment, and never reviews its own work in place of the review step.
+- Records a `Ruling:` in the ledger for every ambiguity it resolved.
+
+### `review`
+- Runs from a fresh context with three inputs: the task text, the implementer's report, and the diff for the exact commit range (base recorded before implementation, never `HEAD~1`). It reads the diff as its view of the change and does not crawl the codebase except to check one named risk.
+- Treats the report as unverified claims. A stated rationale never downgrades a finding.
+- Returns two verdicts: **spec compliance** (missing, extra, misunderstood, and items it cannot verify from the diff) and **quality** (findings by severity: Critical, Important, Minor, each with file:line, what, why, how to fix), and a clear ready / not-ready assessment.
+- Applies the constitution: every principle and every `evidence` requirement of the gate is a review criterion.
+- Never edits code. Never approves work it wrote (`separation_of_duties`).
+
+### `test`
+- Verifies against the plan's stated behaviour, not against the implementation.
+- Produces test output as an artifact the gate's `evidence` can name, and reports counts, not adjectives.
+
+### Fix loop (in `implement` and `review`)
+When a review returns Critical or Important findings: the implementer fixes and re-runs the covering tests; the reviewer re-checks only the findings and the fix diff, marking each ADDRESSED or NOT ADDRESSED. Cap the loop (five rounds by default; the process may set fewer). At the cap, the workflow step's owner adjudicates each open finding with a recorded `Ruling:` or `Parked:` line rather than continuing to churn. Minor findings are ledgered as deferred and triaged at the final review, never silently dropped.
 
 ---
 

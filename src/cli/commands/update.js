@@ -69,6 +69,22 @@ export async function updateAction({ yes, projectDir } = {}) {
     }
   }
 
+  // Refresh installed hook scripts in place — they are copies, not symlinks.
+  const installedHooksDir = join(ryoDir, 'hooks');
+  const hooksSrcDir = join(PACKAGE_TEMPLATES_DIR, 'hooks');
+  if (await exists(installedHooksDir) && await exists(hooksSrcDir)) {
+    for (const entry of await readdir(hooksSrcDir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      if (!await exists(join(installedHooksDir, entry.name))) continue;
+      try {
+        await copyFile(join(hooksSrcDir, entry.name), join(installedHooksDir, entry.name));
+        updated.push(join('hooks', entry.name));
+      } catch (err) {
+        p.log.warn(`Could not update hooks/${entry.name}: ${err.message}`);
+      }
+    }
+  }
+
   s.stop('Template update complete.');
 
   if (updated.length === 0) {

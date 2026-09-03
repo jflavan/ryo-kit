@@ -130,6 +130,8 @@ npx ryo-kit sync [options]
 3. Checks for conflicts with user-owned `.agents/` directories (uses the `.ryo-kit` marker file)
 4. Scans `.agents/skills/` for skill directories and `.ryo/agents/` for agent definitions
 5. For each runtime: removes stale symlinks and agent blocks, then installs current skills and agents
+6. Writes the managed `ryo-kit` block into each runtime's instructions file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursorrules`) pointing at `.ryo/` and `/ryo-session`
+7. Copies `session-start.js` and `guard.js` to `.ryo/hooks/`, compiles the constitution's `protected_branches`, `forbidden_paths`, and `stop_conditions` to `.ryo/hooks/policy.json`, and registers the hooks with runtimes that support them (Claude Code: `.claude/settings.json`; Cursor: `.cursor/hooks.json`). Existing entries are preserved; ryo-kit entries are never duplicated. Re-run `sync` after editing the constitution so the policy is recompiled.
 
 **Installation mechanisms by runtime:**
 
@@ -168,14 +170,23 @@ npx ryo-kit check [options]
 **What it does:**
 
 1. Reads all `.agent.md` files from `agents/` — validates YAML frontmatter against AgentDefSchema
-2. Reads all `SKILL.md` files from `skills/*/` — validates against SkillDefSchema
+2. Reads all `SKILL.md` files from `.agents/skills/*/` (and the legacy `.ryo/skills/`) — validates against SkillDefSchema
 3. Reads all `.workflow.md` files from `workflows/` — validates against WorkflowDefSchema
 4. Reads `process.md` if it exists — validates against ProcessDefSchema
-5. Cross-reference checks:
-   - Agents referenced in workflow steps must exist in `agents/`
-   - Skills referenced in workflow steps must exist in `skills/`
-   - Process phases referenced in workflow steps must exist in `process.md`
-6. Reports errors with file paths
+5. Reads `constitution.md` frontmatter if present — validates against ConstitutionSchema
+6. Reads `.state/signals.md` — validates every entry line against SignalSchema
+7. Cross-reference checks:
+   - Agents referenced in workflow steps and process phases must exist in `agents/`
+   - `handoff_to` targets must exist in `agents/`
+   - Skills referenced in workflow steps must exist in `.agents/skills/`
+   - Process phases referenced in workflow steps and scale rules must exist in `process.md`
+8. Governance rules on every gate:
+   - An `automated` gate cannot claim `separation_of_duties` or name approver roles
+   - The performing agent cannot appear in its own gate's `approvers.agents` under `separation_of_duties`
+   - A scale rule may only skip a phase or step for the scopes its gate's `skippable_for` lists; `skippable_for: []` is never skippable
+   - A workflow step gate cannot weaken its process phase gate (weaker type, dropped `separation_of_duties` or `evidence`, wider `skippable_for`, fewer approvers)
+9. Validates `.state/ledger.md` (identity line, recognised entry shapes, `Ruling:` format) and reports `.ryo/hooks/policy.json` as stale when the constitution changed since it was compiled
+10. Reports errors with file paths and exits 1 if any were found
 
 **This is purely deterministic** — no AI tool needed. Use it in CI to validate framework integrity.
 
@@ -185,6 +196,63 @@ npx ryo-kit check [options]
 npx ryo-kit check
 npx ryo-kit check --dir ./my-project/.ryo
 ```
+
+## ryo classify
+
+Classify the scope of a change from the paths it touches, applying the constitution's `scope_overrides` and `forbidden_paths`. Deterministic; generated workflows call it as their first step.
+
+```sh
+npx ryo-kit classify [paths...] [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-s, --scope <scope>` | Proposed scope: `small-change`, `bug-fix`, `feature`, `epic`, or `hotfix`. The result never downgrades it. |
+| `--hotfix` | Emergency path. Size overrides still apply, and so do gates marked `skippable_for: []`. |
+| `--json` | Print machine-readable JSON |
+
+**What it does:**
+
+1. Loads `constitution.md` from `.ryo/` or `~/.ryo/`
+2. For each path, applies every matching `scope_overrides` rule; the result is the largest of the proposed scope and all matching minimums
+3. Reports paths that match `forbidden_paths` and exits 2 if any do
+4. Prints the constitution's `stop_conditions` so the executor has them in view
+
+**Example:**
+
+```sh
+npx ryo-kit classify src/auth/login.ts --scope bug-fix
+# Scope: feature (upgraded from bug-fix)
+# src/auth/login.ts → minimum feature — auth changes always get design review
+```
+
+## ryo trace
+
+Trace the commits on the current branch to the workflow steps and gate evidence that produced them, using the in-flight ledger (`.ryo/.state/ledger.md`) and retained audit ledgers (`.ryo/.state/audit/*.md`). Deterministic; git plus markdown parsing.
+
+```sh
+npx ryo-kit trace [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-b, --base <ref>` | Integration base. Default: the first `protected_branches` entry that exists locally, else `main`, else `master`. |
+| `--json` | Print machine-readable JSON |
+| `--strict` | Exit 1 when any commit is not covered by a completed step, a gate passed without evidence, or a ledger names commits that do not exist |
+
+**What it does:**
+
+1. Lists commits in `<base>..HEAD`
+2. Parses every `Step N: complete (commits a..b, gate X passed — evidence: ...)` line in the ledgers and expands the commit ranges with git
+3. Reports each commit with the workflow, step, and gate that produced it, or `NOT TRACED`
+4. Reports steps that passed a gate without recorded evidence, steps that name no commits, and commit ranges not found in the repository
+5. Lists every ruling recorded in the ledgers
+
+Use `--strict` in CI on pull requests to make "every change is traceable to a decision" a check rather than a principle.
 
 ## ryo update
 

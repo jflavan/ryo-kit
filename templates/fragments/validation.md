@@ -119,6 +119,34 @@ This validates that the workflow steps form a coherent pipeline where each step 
 
 **Warning format (non-blocking):** `INPUT_CHAIN_GAP: Workflow "[workflow-name]" step [N] input "[input]" is not produced by any prior step`
 
+### Check 10: Gate Governance
+
+For every gate in `.ryo/agents/*.agent.md`, `.ryo/process.md`, and `.ryo/workflows/*.workflow.md`:
+- A gate with `separation_of_duties: true` must not be `type: automated`, and the agent performing the gated work must not appear in `approvers.agents`.
+- `approvers.roles` may only appear on `human` or `hybrid` gates.
+- A phase or step whose gate has `skippable_for` may only be skipped by scale rules for the scopes it lists. `skippable_for: []` means it must appear in every scale rule's required list.
+- A workflow step gate may not weaken the process phase gate it belongs to: it may not drop `separation_of_duties`, widen `skippable_for`, or remove an `evidence` item.
+
+**Error formats:**
+- `SOD_AUTOMATED: [file] [gate]: separation_of_duties requires a human or hybrid gate`
+- `SOD_SELF_APPROVAL: [file] [gate]: performer "[agent]" is also an approver`
+- `UNSKIPPABLE_SKIPPED: [file]: scale rule "[scope]" skips "[name]" whose gate is only skippable for [list]`
+- `GATE_WEAKENED: Workflow "[workflow]" step [N] weakens process gate for phase "[phase]": [what changed]`
+
+### Check 11: Constitution Frontmatter
+
+If `constitution.md` has YAML frontmatter, validate it against the ConstitutionSchema (`protected_branches`, `required_reviewers`, `forbidden_paths`, `stop_conditions`, `scope_overrides`, `evidence`, `audit`). Every `scope_overrides[].minimum_scope` must be one of `small-change`, `bug-fix`, `feature`, `epic`.
+
+**Error format:** `CONSTITUTION_INVALID: [field]: [message]`
+
+### Check 12: Signal Format
+
+For every entry line in `.ryo/.state/signals.md` (lines starting `- **`), check it has the shape `- **timestamp** | type | subject | outcome | context?` and that `type` is one of the eight signal types.
+
+**Error format:** `SIGNAL_MALFORMED: signals.md line [N]: [message]`
+
+`npx ryo-kit check` runs Checks 1, 2, 3, 4 (dangling targets only), 7, 8 (skip references), 10, 11, and 12 deterministically. Run it after any manual edit.
+
 ---
 
 ## Reporting Results
@@ -166,5 +194,11 @@ When running as part of ryo-gen (not standalone ryo-check), attempt to fix error
 | PROCESS_AGENT_NOT_FOUND | Remove the agent from the phase's agents array. Warn user |
 | EMPTY_REQUIRED | Ask user. Cannot auto-fix safely |
 | CONTRADICTORY_SCALE_RULE | Remove the entry from skip list (keep it required). Warn user |
+| SOD_AUTOMATED | Change the gate type to `hybrid`. Warn user |
+| SOD_SELF_APPROVAL | Remove the performer from `approvers.agents`. If no approver remains, ask user |
+| UNSKIPPABLE_SKIPPED | Remove the phase/step from the scale rule's skip list and add it to required. Warn user |
+| GATE_WEAKENED | Restore the process gate's fields on the step gate. Warn user |
+| CONSTITUTION_INVALID | Do not auto-fix. Report the field and ask the user |
+| SIGNAL_MALFORMED | Do not auto-fix. Report the line number |
 
 After auto-fixes, re-run all checks to confirm the fix resolved the issue without introducing new errors.

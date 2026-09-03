@@ -1,8 +1,9 @@
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
-import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END } from './base.js';
+import { BaseRuntime, RYO_BLOCK_START, RYO_BLOCK_END, isRyoHookCommand, hookCommand } from './base.js';
 import { ensureDir, ensureParentDir, readIfExists, exists } from '../utils/fs.js';
 import { createSymlink, removeRyoKitSymlinks } from '../utils/symlink.js';
+import { readJsonConfig, writeJsonConfig } from '../utils/json-config.js';
 
 export class ClaudeCodeRuntime extends BaseRuntime {
   get name() { return 'claude-code'; }
@@ -34,11 +35,63 @@ export class ClaudeCodeRuntime extends BaseRuntime {
     await upsertRyoBlock(this.configFile, contextRef);
   }
 
+  get settingsFile() {
+    return join(this.projectDir, '.claude', 'settings.json');
+  }
+
+  /**
+   * Upsert the ryo-kit hooks into .claude/settings.json:
+   *  - SessionStart (startup|clear|compact) → session-start.js injects governance context
+   *  - PreToolUse (Bash|Edit|Write|MultiEdit|NotebookEdit) → guard.js enforces
+   *    protected_branches and forbidden_paths
+   * Existing hooks and settings are preserved; ryo-kit entries are identified by
+   * the `.ryo/hooks/` marker so repeated syncs never duplicate them.
+   */
+  async installHooks(hookPaths) {
+    const settings = await readJsonConfig(this.settingsFile);
+    settings.hooks ??= {};
+    const placeholder = '${CLAUDE_PROJECT_DIR}';
+
+    const sessionStart = (settings.hooks.SessionStart ??= []).filter(e => !entryIsRyo(e));
+    sessionStart.push({
+      matcher: 'startup|clear|compact',
+      hooks: [{ type: 'command', command: hookCommand(hookPaths.sessionStart, 'claude', placeholder) }],
+    });
+    settings.hooks.SessionStart = sessionStart;
+
+    const preToolUse = (settings.hooks.PreToolUse ??= []).filter(e => !entryIsRyo(e));
+    preToolUse.push({
+      matcher: 'Bash|Edit|Write|MultiEdit|NotebookEdit',
+      hooks: [{ type: 'command', command: hookCommand(hookPaths.guard, 'claude', placeholder) }],
+    });
+    settings.hooks.PreToolUse = preToolUse;
+
+    await writeJsonConfig(this.settingsFile, settings);
+  }
+
+  async uninstallHooks() {
+    if (!await exists(this.settingsFile)) return;
+    const settings = await readJsonConfig(this.settingsFile);
+    if (!settings.hooks) return;
+    for (const event of ['SessionStart', 'PreToolUse']) {
+      if (!settings.hooks[event]) continue;
+      settings.hooks[event] = settings.hooks[event].filter(e => !entryIsRyo(e));
+      if (settings.hooks[event].length === 0) delete settings.hooks[event];
+    }
+    if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+    await writeJsonConfig(this.settingsFile, settings);
+  }
+
   async uninstall() {
     await removeRyoKitSymlinks(this.skillsDir);
     await removeRyoKitSymlinks(this.agentsDir);
     await removeRyoBlock(this.configFile);
+    await this.uninstallHooks();
   }
+}
+
+function entryIsRyo(entry) {
+  return (entry?.hooks ?? []).some(isRyoHookCommand);
 }
 
 // ---- Shared helpers ----

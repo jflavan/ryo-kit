@@ -4,6 +4,7 @@ import { readdir, rename, unlink, rm, writeFile, mkdir } from 'node:fs/promises'
 import { exists } from '../../utils/fs.js';
 import { readYaml } from '../../utils/yaml.js';
 import { getRuntimeForName } from '../../scaffolder/skill-writer.js';
+import { installHooksForRuntimes } from '../../scaffolder/hook-writer.js';
 import { parseFrontmatter } from '../../context/schema.js';
 import { removeRyoKitSymlinks } from '../../utils/symlink.js';
 import { removeAgentBlock } from '../../utils/agent-block.js';
@@ -146,7 +147,42 @@ export async function syncAction({ projectDir, force } = {}) {
     for (const agent of agents) {
       await runtime.installAgent(agent.name, agent.meta);
     }
+
+    // Reference block in the runtime's instructions file (CLAUDE.md, AGENTS.md, ...).
+    // This is the fallback for runtimes without a session hook: it tells the
+    // tool to load the ryo-session bootstrap at the start of every session.
+    await runtime.updateConfig(buildContextRef(skills.includes('ryo-session')));
   }
+
+  // 6. Install the SessionStart hook so governance context survives /clear and /compact
+  await installHooksForRuntimes(
+    projectDir,
+    runtimeNames.map(name => getRuntimeForName(name, projectDir)),
+  );
+}
+
+/**
+ * The managed block written into each runtime's instructions file.
+ *
+ * @param {boolean} hasSessionSkill - whether .agents/skills/ryo-session exists
+ */
+export function buildContextRef(hasSessionSkill = true) {
+  const lines = [
+    '## ryo-kit',
+    '',
+    'This repository is governed by ryo-kit. The generated framework lives in `.ryo/`:',
+    '- `.ryo/constitution.md` — non-negotiable rules (frontmatter is enforced by tooling, prose by you)',
+    '- `.ryo/process.md` — phases and gates',
+    '- `.ryo/workflows/` — the workflow to follow for each kind of request',
+    '- `.ryo/.state/ledger.md` — the in-flight run; trust it over your memory',
+    '',
+  ];
+  if (hasSessionSkill) {
+    lines.push('At the start of every session, read `.agents/skills/ryo-session/SKILL.md` and follow it: classify the scope of each request before acting, follow the matching workflow, pass gates on evidence, and record rulings in the ledger.');
+  } else {
+    lines.push('Before acting on any request, classify its scope (`npx ryo-kit classify <paths> --scope <proposed>`), follow the matching workflow in `.ryo/workflows/`, and record gate outcomes in `.ryo/.state/signals.md`.');
+  }
+  return lines.join('\n');
 }
 
 /**

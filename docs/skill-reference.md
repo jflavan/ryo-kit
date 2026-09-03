@@ -34,6 +34,23 @@ Skills are markdown prompt files installed into your AI coding tool. They run in
 
 ---
 
+## /ryo-session
+
+**Purpose:** Session bootstrap. Loads the governance context and establishes the rules for the session.
+
+**When to use:** Automatically injected by the SessionStart hook on Claude Code and Cursor (startup, `/clear`, `/compact`). Invoke manually on other runtimes, or whenever the rules need re-stating.
+
+**What it does:**
+
+1. Reads `constitution.md` (frontmatter rules and prose principles), `.ryo/process.md`, the workflow list, `.ryo/.state/current-plan.md`, `.ryo/.state/ledger.md`, and `.ryo/.state/decisions.md`
+2. Reports anything in flight and offers to resume it
+3. Establishes the session rules: classify scope before any action (`npx ryo-kit classify`), follow the matching workflow, approval before implementation at every scope, gates pass on evidence, separation of duties, rulings not stalls, never touch `forbidden_paths`, keep the ledger, list rulings at the end
+4. Carries a red-flags table for the rationalizations that skip governance
+
+See [Governance](./governance.md).
+
+---
+
 ## /ryo-help
 
 **Purpose:** Context-aware guidance. Tells you what to do next.

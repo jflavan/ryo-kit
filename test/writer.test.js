@@ -1,10 +1,11 @@
-import { test, describe } from 'node:test';
+import { test, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import YAML from 'yaml';
-import { writeOrgContext, writeConstitution, writeDefaultTemplates } from '../src/context/writer.js';
+import { writeOrgContext, writeConstitution, writeDefaultTemplates, tuneConstitution } from '../src/context/writer.js';
+import { ConstitutionSchema, parseFrontmatter } from '../src/context/schema.js';
 
 async function makeTempDir() {
   return await mkdtemp(join(tmpdir(), 'ryo-kit-writer-test-'));
@@ -136,5 +137,40 @@ describe('writeDefaultTemplates', () => {
     await writeDefaultTemplates(nested);
     await access(join(nested, 'templates', 'agent-base.yaml'));
     await access(join(nested, 'templates', 'process-base.yaml'));
+  });
+});
+
+describe('tuneConstitution', () => {
+  const template = [
+    '---', '# keep this comment', 'version: 1', 'protected_branches:', '  - main', '  - release/*',
+    'required_reviewers:', '  default: 1', 'evidence:', '  review: required', '  tests: required', '---', '', '# Constitution', '', 'Prose.', '',
+  ].join('\n');
+
+  it('drops protected branches for a solo developer without required reviews', () => {
+    const out = tuneConstitution(template, { team: { size: 'solo' }, compliance: [], conventions: {} });
+    const { data, content } = parseFrontmatter(out);
+    assert.ok(ConstitutionSchema.safeParse(data).success);
+    assert.deepEqual(data.protected_branches, []);
+    assert.equal(data.required_reviewers.default, 0);
+    assert.equal(data.evidence.review, 'optional');
+    assert.equal(data.evidence.tests, 'required', 'untouched fields survive');
+    assert.match(out, /# keep this comment/, 'frontmatter comments survive');
+    assert.match(content, /^# Constitution/);
+  });
+
+  it('keeps protection for a solo developer who requires reviews', () => {
+    const { data } = parseFrontmatter(tuneConstitution(template, { team: { size: 'solo' }, compliance: [], conventions: { reviews: 'required' } }));
+    assert.deepEqual(data.protected_branches, ['main', 'release/*']);
+  });
+
+  it('raises reviewer count and adds compliance evidence for regulated orgs', () => {
+    const { data } = parseFrontmatter(tuneConstitution(template, { team: { size: 'small' }, compliance: ['hipaa'] }));
+    assert.equal(data.required_reviewers.default, 2);
+    assert.deepEqual(data.evidence.additional, ['compliance-checklist']);
+    assert.deepEqual(data.protected_branches, ['main', 'release/*']);
+  });
+
+  it('leaves a template without frontmatter untouched', () => {
+    assert.equal(tuneConstitution('# Just prose\n', { team: { size: 'solo' } }), '# Just prose\n');
   });
 });

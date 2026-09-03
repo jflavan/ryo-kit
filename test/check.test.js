@@ -121,6 +121,11 @@ describe('checkFramework', () => {
       agentFrontmatter({ name: 'builder' }),
       'utf8',
     );
+    await writeFile(
+      join(ryoDir, 'agents', 'verifier.agent.md'),
+      agentFrontmatter({ name: 'verifier', handoff_to: ['builder'] }),
+      'utf8',
+    );
 
     await writeFile(
       join(ryoDir, 'skills', 'plan', 'SKILL.md'),

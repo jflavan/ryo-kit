@@ -33,7 +33,7 @@ If any of these are missing, stop and tell the user:
 Read `.ryo/.state/signals.md` if it exists. This file contains append-only usage tracking entries. Each entry has:
 
 - **Timestamp** — When the event occurred
-- **Type** — One of: `gate-outcome`, `phase-skip`, `agent-skip`, `skill-skip`, `manual-override`
+- **Type** — One of: `gate-outcome`, `phase-skip`, `agent-skip`, `skill-skip`, `manual-override`, `ruling`, `scope-classification`, `evidence`
 - **Subject** — What was affected (agent name, phase name, skill name, gate name)
 - **Outcome** — What happened (passed, failed, skipped, overridden)
 - **Context** — Why, if recorded
@@ -42,6 +42,10 @@ Parse all entries and group them by type and subject.
 
 If `signals.md` does not exist or is empty, note it. The retro can still run using the operation history and framework definitions, but signal-based analysis will be limited. Tell the user:
 > "No usage signals found in `.ryo/.state/signals.md`. The retro will analyze framework structure but cannot assess actual usage patterns. As you use the framework, signals will accumulate and future retros will be more insightful."
+
+---
+
+Also read every retained ledger in `.ryo/.state/audit/` (if the directory exists). Ledgers hold `Ruling:`, `Parked:`, `Scope: upgraded`, and per-step gate lines for completed workflow runs; treat them as signal data with full context.
 
 ---
 
@@ -154,6 +158,30 @@ Analyze workflow step sequences:
 - Are there common patterns across multiple workflows that could be extracted into a shared skill?
 
 **Proposal type:** MODIFY — restructure workflow steps for efficiency.
+
+### Analysis H: Recurring Rulings
+
+From the signals data (`ruling` entries) and any retained ledgers in `.ryo/.state/audit/`, group rulings by subject and by the ambiguity they resolved. A ruling is a decision the executor made because neither the constitution, the process, nor `decisions.md` answered the question.
+
+**Evidence threshold:** If the same kind of ambiguity has been ruled on 3 or more times, the framework is missing a policy.
+
+**Proposal type:** MODIFY — add the missing rule to the constitution (frontmatter or prose), a gate criterion, or a decision in `decisions.md`, so future runs do not have to guess. Quote the rulings verbatim in the proposal.
+
+### Analysis I: Scope Upgrades
+
+From `scope-classification` signals and `Scope: upgraded` ledger lines, count how often work was re-classified upward mid-flight, and on which paths.
+
+**Evidence threshold:** If a path pattern has caused an upgrade 2 or more times, it should be a `scope_overrides` entry in the constitution so classification is right from the start. If a scope label is upgraded in more than 30% of runs, the scale rules for that scope are too optimistic.
+
+**Proposal type:** MODIFY — add a `scope_overrides` rule, or tighten the scale rules for the affected scope.
+
+### Analysis J: Gates Passed Without Evidence
+
+For each `gate-outcome | ... | passed` signal, look for an `evidence` signal with the same subject immediately before it, or a `Step N: complete (... evidence: ...)` line naming the gate in the run's retained ledger.
+
+**Evidence threshold:** Any gate that passed with no evidence entry is a process violation, not a tuning question.
+
+**Proposal type:** MODIFY — add an explicit `evidence` list to the gate, and strengthen the workflow step's instructions. Report the count prominently in the retro summary.
 
 ---
 

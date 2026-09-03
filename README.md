@@ -5,7 +5,7 @@
 
 Roll Your Own AI-driven development framework.
 
-ryo-kit generates custom agents, skills, processes, and workflows tailored to your organization's team size, methodology, tech stack, and compliance requirements. Unlike frameworks that ship fixed agent roles, ryo-kit produces exactly the roles and capabilities your org needs.
+ryo-kit generates custom agents, skills, processes, and workflows tailored to your organization's team size, methodology, tech stack, and compliance requirements. Unlike frameworks that ship fixed agent roles, ryo-kit produces exactly the roles and capabilities your org needs — and it makes the process hold: scope is classified by policy, gates pass on evidence, reviewers are never the implementer, decisions are recorded, and the rules are re-injected into every session.
 
 No API keys required. The CLI scaffolds files and installs skills into your existing AI coding tool (Claude Code, Copilot, Cursor, Codex, Windsurf, or Gemini CLI). The intelligence runs through the tool you already pay for.
 
@@ -34,7 +34,7 @@ Answer the interview questions about your org. Then open your AI tool and run:
 /ryo-gen
 ```
 
-The skill chain reads your org context and generates a complete framework into `.ryo/`. Skills are written to `.agents/skills/` and synced to each configured runtime.
+The skill chain reads your org context and generates a complete framework into `.ryo/`. Skills are written to `.agents/skills/` and synced to each configured runtime. Then start a new session: the ryo-kit hook loads the constitution and process, and every request is classified before work begins.
 
 ## What Gets Generated
 
@@ -58,7 +58,9 @@ Agent and skill count, names, and responsibilities are not predetermined. They'r
 | `npx ryo-kit sync` | Sync agents and skills to all configured coding tool runtimes |
 | `npx ryo-kit add agent` | Add a new agent definition |
 | `npx ryo-kit add skill` | Add a new skill |
-| `npx ryo-kit check` | Validate framework files against schemas |
+| `npx ryo-kit check` | Validate framework files against schemas, cross-references, and governance rules |
+| `npx ryo-kit classify <paths>` | Classify the scope of a change from the paths it touches, per the constitution |
+| `npx ryo-kit trace` | Trace branch commits to the workflow steps and gate evidence that produced them |
 | `npx ryo-kit update` | Pull latest skill templates from the package |
 | `npx ryo-kit conference` | Install conference mode for multi-agent discussions |
 | `npx ryo-kit docs` | Install documentation mode for agent-driven doc generation |
@@ -72,6 +74,7 @@ Installed into your AI tool by `ryo init` and `ryo gen`.
 | Command | Description |
 |---------|-------------|
 | `/ryo-gen` | Generate agents, skills, process, and workflows from org context |
+| `/ryo-session` | Session bootstrap: load constitution, process, and in-flight state; injected by the session hook |
 | `/ryo-help` | Context-aware guidance on what to do next |
 | `/ryo-add-agent` | Create a new agent conversationally |
 | `/ryo-add-skill` | Create a new skill conversationally |
@@ -103,9 +106,23 @@ Skills are authored in `.agents/skills/` (the canonical location) and symlinked 
 
 The generator uses a hybrid approach: strong defaults from a decision tree based on your org profile, with conversational overrides during a clarification phase.
 
+## Governance
+
+A process nobody enforces is a suggestion. ryo-kit builds enforcement into what it generates:
+
+- **Structured constitution.** `constitution.md` carries machine-checkable rules in its frontmatter (protected branches, required reviewers per path, forbidden paths, stop conditions, scope overrides, evidence policy, audit retention) and non-negotiable principles in its prose. `ryo check` validates it; every session loads it.
+- **Scope classification by policy.** Every workflow starts with `npx ryo-kit classify <paths> --scope <proposed>`. A one-line change under `auth/**` is a `feature` if the constitution says so. Scope only ratchets up mid-task.
+- **Gates that pass on evidence.** Every gate names the artifacts that must exist, freshly produced, before it passes. `skippable_for: []` marks gates no scope may skip; compliance gates always are.
+- **Separation of duties.** Review is done by a different agent than implementation, from a fresh context, on the diff. `ryo check` rejects a performer approving its own gate.
+- **Rulings, not stalls.** Ambiguities the policy does not answer are decided, recorded in `.ryo/.state/ledger.md` as `Ruling: what — why — cost if wrong`, and surfaced at the end. The executor stops only for destructive or irreversible actions, security-sensitive actions, side effects beyond the branch, human gates, and the constitution's own stop conditions.
+- **Traceability you can check.** `npx ryo-kit trace` maps every commit on the branch to the ledger step and gate that produced it, and flags commits no step accounts for and gates passed without evidence. Deterministic, so it runs in CI.
+- **Hooks that inject and enforce.** `ryo sync` installs a SessionStart hook for Claude Code and Cursor that injects the constitution, process, in-flight plan, and ledger on startup, `/clear`, and `/compact`, and a guard hook that refuses pushes to protected branches, merges, and edits to forbidden paths at tool-call time. Other runtimes get a managed block in their instructions file pointing at `/ryo-session`.
+
+See [Governance](docs/governance.md).
+
 ## Self-Improvement
 
-Generated workflows log usage signals (gate outcomes, skipped phases, manual overrides) to `.ryo/.state/signals.md`. After a sprint or milestone, run `/ryo-retro` to analyze patterns and get improvement proposals. Apply accepted proposals with `/ryo-evolve`. Files in `.ryo/.customize/` are never silently overwritten.
+Generated workflows log usage signals (gate outcomes, evidence, scope classifications, rulings, skipped phases, manual overrides) to `.ryo/.state/signals.md`, and completed workflow ledgers are retained in `.ryo/.state/audit/`. After a sprint or milestone, run `/ryo-retro` to analyze patterns and get improvement proposals. Apply accepted proposals with `/ryo-evolve`. Files in `.ryo/.customize/` are never silently overwritten.
 
 ## Documentation
 
@@ -116,6 +133,7 @@ Generated workflows log usage signals (gate outcomes, skipped phases, manual ove
 | [CLI Reference](docs/cli-reference.md) | All commands with options and examples |
 | [Skill Reference](docs/skill-reference.md) | All slash commands and what they do |
 | [Runtimes](docs/runtimes.md) | How skills get installed into each AI tool |
+| [Governance](docs/governance.md) | Constitution, scope classification, gates, evidence, ledger, session hook |
 | [Customization](docs/customization.md) | Overriding generated content, `.customize/` directory |
 | [Self-Improvement](docs/self-improvement.md) | The retro + evolve cycle |
 | [Schema Reference](docs/schemas.md) | All Zod schemas and YAML frontmatter fields |
